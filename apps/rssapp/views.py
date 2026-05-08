@@ -382,8 +382,22 @@ def run_rss_worker():
     """
     Execute the RSS worker asynchronously in the background.
     Logs any errors but does not block the request.
+
+    In Docker environment, restart the rss-worker container to trigger immediate fetch.
+    In local environment, try to run the worker script.
     """
     try:
+        # Try Docker restart first
+        result = subprocess.run(
+            ["docker", "compose", "restart", "rss-worker"],
+            capture_output=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            logger.info("RSS worker container restarted")
+            return
+
+        # Fallback to local worker script
         worker_script = os.path.join(
             os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
             "bin",
@@ -639,6 +653,7 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
 
     article_ids = [a.id for a in page_obj.object_list]
     state_by_article_id = {}
+    saved_article_urls = set()
     if request.user.is_authenticated and article_ids:
         state_by_article_id = {
             s.article_id: s
@@ -646,6 +661,12 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
                 user=request.user, article_id__in=article_ids
             )
         }
+        article_links = [a.link for a in page_obj.object_list]
+        saved_article_urls = set(
+            Bookmark.objects.filter(
+                user=request.user, url__in=article_links
+            ).values_list("url", flat=True)
+        )
 
     if feed_name_fn is None:
         feed_name_fn = lambda a: a.feed.name if a.feed else ""
@@ -665,8 +686,10 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
                 "image_url": article.image_url or "",
                 "published_at": article.published_at,
                 "created_at": article.created_at,
+                "is_favorite": state.is_favorite if state else False,
                 "is_read_later": state.is_read_later if state else False,
                 "is_read": state.is_read if state else False,
+                "is_saved": article.link in saved_article_urls,
             }
         )
 
@@ -717,6 +740,17 @@ def feed_settings_view(request):
 
 
 @login_required
+def refresh_all_feeds_view(request):
+    if request.method != "POST":
+        return redirect("settings-feeds")
+
+    Feed.objects.filter(is_active=True).update(next_fetch_at=timezone.now())
+    run_rss_worker()
+    messages.success(request, "All feeds queued for refresh. Articles will appear shortly.")
+    return redirect("settings-feeds")
+
+
+@login_required
 def feed_update_view(request, feed_id):
     if request.method != "POST":
         return redirect("settings-feeds")
@@ -728,6 +762,14 @@ def feed_update_view(request, feed_id):
         name = feed.name
         feed.delete()
         messages.success(request, f"Deleted feed: {name}")
+        return redirect("settings-feeds")
+
+    # Refresh action - fetch this feed immediately
+    if request.POST.get("action") == "refresh":
+        feed.next_fetch_at = timezone.now()
+        feed.save(update_fields=["next_fetch_at"])
+        run_rss_worker()
+        messages.success(request, f"Feed refresh triggered: {feed.name}. Articles will appear shortly.")
         return redirect("settings-feeds")
 
     form = FeedUpdateForm(request.POST, instance=feed, prefix=f"feed-{feed.id}")
@@ -742,13 +784,156 @@ def feed_update_view(request, feed_id):
 
 @login_required
 def settings_view(request, tab="feeds"):
-    redirect_map = {
-        "feeds": "settings-feeds",
-        "categories": "settings-categories",
-        "tags": "settings-tags",
-        "account": "settings-account",
-    }
-    return redirect(redirect_map.get(tab, "settings-feeds"))
+    """Unified settings page with tabs: feeds, tags, categories, account."""
+    valid_tabs = ["feeds", "tags", "categories", "account"]
+    if tab not in valid_tabs:
+        return redirect("settings-feeds")
+
+    context = {"current_page": "settings", "active_tab": tab}
+
+    # ── Feeds Tab ──────────────────────────────────────
+    if tab == "feeds":
+        if request.method == "POST":
+            form = FeedCreateForm(request.POST)
+            if form.is_valid():
+                new_feed = form.save(commit=False)
+                max_order = (
+                    Feed.objects.order_by("-display_order")
+                    .values_list("display_order", flat=True)
+                    .first()
+                )
+                new_feed.display_order = (max_order or 0) + 1
+                # Set next_fetch_at to now so RSS worker fetches it immediately
+                new_feed.next_fetch_at = timezone.now()
+                new_feed.save()
+                run_rss_worker()
+                if getattr(form, "discovery_used", False):
+                    messages.success(
+                        request,
+                        f"✓ Feed added: {new_feed.name}. Automatically discovered feed URL from the website. Articles will appear shortly.",
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f"✓ Feed added: {new_feed.name}. Fetching articles in the background...",
+                    )
+                return redirect("settings-feeds")
+            else:
+                # Log discovery errors for debugging
+                if hasattr(form, 'discovery_error') and form.discovery_error:
+                    logger.warning(
+                        f"Feed discovery failed: {form.discovery_error} - URL: {request.POST.get('url', 'N/A')}"
+                    )
+        else:
+            form = FeedCreateForm()
+
+        feeds = (
+            Feed.objects.all()
+            .annotate(article_count=Count("articles"))
+            .order_by("display_order", "id")
+        )
+        feed_rows = [
+            {
+                "feed": feed,
+                "form": FeedUpdateForm(instance=feed, prefix=f"feed-{feed.id}"),
+            }
+            for feed in feeds
+        ]
+        context.update({"feed_form": form, "feeds": feeds, "feed_rows": feed_rows})
+
+    # ── Categories Tab ─────────────────────────────────
+    elif tab == "categories":
+        if request.method == "POST":
+            form = BookmarkCategoryForm(request.POST)
+            if form.is_valid():
+                category = form.save(commit=False)
+                category.user = request.user
+                try:
+                    category.save()
+                    messages.success(request, f'Category "{category.name}" created.')
+                    return redirect("settings-categories")
+                except IntegrityError:
+                    messages.error(request, "A category with this name already exists.")
+        else:
+            form = BookmarkCategoryForm()
+
+        categories = (
+            BookmarkCategory.objects.filter(user=request.user)
+            .annotate(bookmark_count=Count("bookmarks"))
+            .order_by("display_order", "name")
+        )
+        category_rows = [
+            {
+                "category": cat,
+                "form": BookmarkCategoryForm(instance=cat, prefix=f"cat-{cat.id}"),
+            }
+            for cat in categories
+        ]
+        context.update(
+            {
+                "category_form": form,
+                "categories": categories,
+                "category_rows": category_rows,
+            }
+        )
+
+    # ── Tags Tab ───────────────────────────────────────
+    elif tab == "tags":
+        if request.method == "POST":
+            form = TagForm(request.POST)
+            if form.is_valid():
+                tag = form.save(commit=False)
+                tag.user = request.user
+                try:
+                    tag.save()
+                    messages.success(request, f'Tag "{tag.name}" created.')
+                    return redirect("settings-tags")
+                except IntegrityError:
+                    messages.error(request, "A tag with this name already exists.")
+        else:
+            form = TagForm()
+
+        tags = Tag.objects.filter(user=request.user).annotate(
+            bookmark_count=Count("bookmarks")
+        )
+        tag_rows = [
+            {"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")}
+            for tag in tags
+        ]
+        context.update({"tag_form": form, "tags": tags, "tag_rows": tag_rows})
+
+    # ── Account Tab ────────────────────────────────────
+    elif tab == "account":
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile_form = UserProfileForm(instance=profile)
+        password_form = StyledPasswordChangeForm(request.user)
+
+        if request.method == "POST":
+            action = request.POST.get("form_action", "")
+            if action == "profile":
+                profile_payload = request.POST.copy()
+                for field in UserProfileForm.Meta.fields:
+                    if field not in profile_payload:
+                        profile_payload[field] = getattr(profile, field)
+
+                profile_form = UserProfileForm(profile_payload, instance=profile)
+                if profile_form.is_valid():
+                    profile_form.save()
+                    messages.success(request, "Preferences saved.")
+                    return redirect("settings-account")
+            elif action == "password":
+                password_form = StyledPasswordChangeForm(request.user, request.POST)
+                if password_form.is_valid():
+                    password_form.save()
+                    from django.contrib.auth import update_session_auth_hash
+
+                    update_session_auth_hash(request, password_form.user)
+                    messages.success(request, "Password changed.")
+                    return redirect("settings-account")
+
+        context.update({"profile_form": profile_form, "password_form": password_form})
+
+    return render(request, "rss/settings.html", context)
 
 
 @login_required
@@ -771,12 +956,12 @@ def rss_settings_view(request):
                 if getattr(form, "discovery_used", False):
                     messages.success(
                         request,
-                        f"Feed added from the discovered RSS URL: {new_feed.url}",
+                        f"✓ Feed added: {new_feed.name}. Automatically discovered feed URL from the website. Articles will appear shortly.",
                     )
                 else:
                     messages.success(
                         request,
-                        "Feed added. Articles are being fetched in the background — they'll appear shortly.",
+                        f"✓ Feed added: {new_feed.name}. Fetching articles in the background...",
                     )
                 return redirect("settings-feeds")
             except IntegrityError:
@@ -785,6 +970,12 @@ def rss_settings_view(request):
             for field_errors in form.errors.values():
                 for error in field_errors:
                     messages.error(request, error)
+
+            # Log discovery errors for debugging
+            if hasattr(form, 'discovery_error') and form.discovery_error:
+                logger.warning(
+                    f"Feed discovery failed: {form.discovery_error} - URL: {request.POST.get('url', 'N/A')}"
+                )
     else:
         form = FeedCreateForm()
 
@@ -1375,6 +1566,8 @@ def bookmark_list_view(request):
                 "category": bm.category,
                 "created_at": bm.created_at,
                 "is_pinned": state.is_pinned if state else False,
+                "is_favorite": state.is_favorite if state else False,
+                "is_favorite": state.is_favorite if state else False,
                 "is_read_later": state.is_read_later if state else False,
                 "is_read": state.is_read if state else False,
             }
@@ -1813,6 +2006,7 @@ def main_dashboard_view(request):
                 "tags": list(bm.tags.all()),
                 "created_at": bm.created_at,
                 "is_pinned": state.is_pinned if state else False,
+                "is_favorite": state.is_favorite if state else False,
                 "is_read_later": state.is_read_later if state else False,
             }
         )
@@ -2024,6 +2218,7 @@ def bookmarks_page_view(request):
             "category": bm.category,
             "created_at": bm.created_at,
             "is_pinned": state.is_pinned if state else False,
+                "is_favorite": state.is_favorite if state else False,
             "is_read_later": state.is_read_later if state else False,
             "is_read": state.is_read if state else False,
         }
