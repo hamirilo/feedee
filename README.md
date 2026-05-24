@@ -107,29 +107,23 @@ go run rss_worker/main.go
 ### 開発環境（Docker）
 
 ```bash
-make up       # バックグラウンド起動
-make logs     # ログ確認
-make down     # 停止
+just dev-bg    # バックグラウンド起動
+just dev-logs  # ログ確認
+just dev-down  # 停止
 ```
 
-### 本番環境（standalone）
+### 本番環境（Docker）
 
 ```bash
 # .env ファイルを作成（必須項目）
 cp .env.example .env
 # DJANGO_SECRET_KEY, POSTGRES_PASSWORD, WORKER_API_TOKEN を設定
 
-make standalone-up       # 起動
-make standalone-migrate  # マイグレーション
-make standalone-logs     # ログ確認
+just prod-up       # 起動
+just prod-migrate  # マイグレーション
+just prod-logs     # ログ確認
 ```
 
-### 本番環境（infra 連携）
-
-```bash
-make infra-up    # 起動
-make infra-down  # 停止
-```
 
 ## API エンドポイント
 
@@ -213,30 +207,38 @@ make infra-down  # 停止
 | `INGEST_MAX_RETRY` | `3` | 取り込みリトライ回数 |
 | `INGEST_INITIAL_BACKOFF_SECONDS` | `1` | リトライ初期待機時間（秒） |
 
-## Make コマンド
+## Just コマンド
 
 ```
-make dev               開発環境起動（フォアグラウンド）
-make up                開発環境起動（バックグラウンド）
-make down              開発環境停止
-make logs              開発ログ表示
-make test              テスト実行
-make migrate           マイグレーション実行
-make shell             Django シェル
-make worker            RSS ワーカーをローカル実行
+just dev                 開発環境起動（フォアグラウンド）
+just dev-bg              開発環境起動（バックグラウンド）
+just dev-down            開発環境停止
+just dev-logs            開発ログ表示
+just dev-build           開発環境ビルド
 
-make standalone-up      単体完結の本番環境起動
-make standalone-down    単体完結の本番環境停止
-make standalone-logs    単体完結の本番ログ表示
-make standalone-migrate 単体完結の本番マイグレーション
-make standalone-shell   単体完結の本番 Django シェル
+just prod-up             本番環境起動（バックグラウンド）
+just prod-down           本番環境停止
+just prod-logs           本番ログ表示
+just prod-build          本番環境ビルド
+just prod-migrate        本番マイグレーション実行
+just prod-shell          本番 Django シェル
 
-make infra-up           外部インフラ連携環境起動
-make infra-up-build     外部インフラ連携環境をビルドして起動
-make infra-down         外部インフラ連携環境停止
+just local-migrate       ローカル DB マイグレーション
+just local-shell         ローカル Django シェル
+just local-worker        ローカル RSS ワーカー起動
+just local-superuser     ローカル スーパーユーザー作成
+just local-collectstatic ローカル 静的ファイル収集
 
-make backup-dev         開発 DB バックアップ
-make backup-prod        本番 DB バックアップ
-make restore-dev        開発 DB リストア
-make restore-prod       本番 DB リストア
+just test                テスト実行
+just lint                コードチェック（ruff）
+just fmt                 コードフォーマット（ruff）
+just clean               キャッシュ・ビルド生成物削除
+
+just backup-dev          開発 DB バックアップ
+just backup-prod         本番 DB バックアップ
+just restore-dev         開発 DB リストア
+just restore-prod        本番 DB リストア
+just list-backups        バックアップ一覧表示
+just git-safe-purge      Git 履歴から指定パスを安全に削除
 ```
+
