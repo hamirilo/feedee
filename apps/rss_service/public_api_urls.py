@@ -7,10 +7,12 @@ from .views import (
     FeedFetchStatusView,
     FeedListView,
     FeedReorderView,
+    FeedDiscoverView,
 )
 
 urlpatterns = [
     path("feeds/", FeedListView.as_view(), name="feed-list"),
+    path("feeds/discover/", FeedDiscoverView.as_view(), name="feed-discover"),
     path(
         "feeds/<int:feed_id>/fetch-status/",
         FeedFetchStatusView.as_view(),

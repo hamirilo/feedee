@@ -10,6 +10,7 @@ from .views import (
     bookmark_from_article_view,
     bookmark_state_toggle_view,
     bookmarklet_view,
+    bookmarklet_post_view,
     bookmarks_page_view,
     tag_update_view,
 )
@@ -21,6 +22,7 @@ urlpatterns = [
     path("old-bookmarks/", bookmarks_page_view, name="bookmark-list"),
     path("bookmarks/add/", bookmark_add_view, name="bookmark-add"),
     path("bookmarks/bookmarklet/", bookmarklet_view, name="bookmarklet"),
+    path("bookmarks/bookmarklet/post/", bookmarklet_post_view, name="bookmarklet-post"),
     path("bookmarks/<int:bookmark_id>/edit/", bookmark_edit_view, name="bookmark-edit"),
     path(
         "bookmarks/<int:bookmark_id>/delete/",

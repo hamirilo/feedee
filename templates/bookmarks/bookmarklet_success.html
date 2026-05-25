@@ -1,0 +1,100 @@
+{% load static vite %}
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saved! - Feedee</title>
+    {% include "includes/_theme_head.html" %}
+    {% vite_assets "js/main.js" %}
+    <style>
+        .checkmark-circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 2;
+            stroke-miterlimit: 10;
+            stroke: #10b981;
+            fill: none;
+            animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        }
+        .checkmark {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: block;
+            stroke-width: 2;
+            stroke: #fff;
+            stroke-miterlimit: 10;
+            margin: 10% auto;
+            box-shadow: inset 0px 0px 0px #10b981;
+            animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s forwards;
+        }
+        .checkmark-check {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+        }
+        @keyframes stroke {
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes scale {
+            0%, 100% { transform: none; }
+            50% { transform: scale3d(1.1, 1.1, 1); }
+        }
+        @keyframes fill {
+            100% { box-shadow: inset 0px 0px 0px 30px #10b981; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans antialiased h-full flex flex-col justify-center items-center transition-colors">
+    <div class="max-w-md w-full mx-auto px-6 py-12 text-center bg-white border border-gray-200 shadow-md rounded-xl"
+         style="max-width: 448px;">
+        
+        <!-- Success Animation -->
+        <div class="flex justify-center mb-6">
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>
+        </div>
+
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Saved successfully!</h1>
+        
+        <p class="text-sm text-gray-500 mb-6">
+            {% if type == 'bookmark' %}
+                Bookmark <strong>"{{ title }}"</strong> has been added to Feedee.
+            {% else %}
+                RSS Feed <strong>"{{ title }}"</strong> has been subscribed. Articles will be fetched shortly.
+            {% endif %}
+        </p>
+
+        <!-- Countdown Banner -->
+        <div class="mb-6 py-2 px-4 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold inline-block theme-dark:bg-emerald-950/50 theme-dark:text-emerald-300">
+            Closing window in <span id="countdown">3</span> seconds...
+        </div>
+
+        <!-- Manual Action -->
+        <div>
+            <button onclick="window.close()" 
+                    class="w-full inline-flex justify-center items-center rounded-lg bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm theme-dark:bg-white theme-dark:hover:bg-gray-100 theme-dark:text-gray-900">
+                Close Window
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let count = 3;
+        const countdownEl = document.getElementById('countdown');
+        
+        const timer = setInterval(() => {
+            count--;
+            countdownEl.textContent = count;
+            if (count <= 0) {
+                clearInterval(timer);
+                window.close();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -39,6 +39,7 @@ urlpatterns = [
     path("settings/feeds/", settings_view, name="settings-feeds", kwargs={"tab": "feeds"}),
     path("settings/tags/", settings_view, name="settings-tags", kwargs={"tab": "tags"}),
     path("settings/categories/", settings_view, name="settings-categories", kwargs={"tab": "categories"}),
+    path("settings/bookmarklet/", settings_view, name="settings-bookmarklet", kwargs={"tab": "bookmarklet"}),
     path("settings/account/", settings_view, name="settings-account", kwargs={"tab": "account"}),
     path("settings/<str:tab>/", settings_view, name="settings-unified-tab"),
     # Legacy redirects

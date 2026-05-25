@@ -1141,3 +1141,113 @@ class EnhancedSearchAndRankingTests(TestCase):
         self.assertLess(
             article_ids.index(plain_unread.id), article_ids.index(read_article.id)
         )
+
+
+class BookmarkletPopupViewAndDiscoveryTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="popupuser",
+            email="popupuser@example.com",
+            password="password123",
+        )
+
+    def test_bookmarklet_install_view_returns_post_url(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("bookmark_service:bookmarklet"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "bookmarks/bookmarklet/post/")
+
+    def test_unified_settings_bookmarklet_tab(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("settings-bookmarklet"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "bookmarks/bookmarklet/post/")
+
+    def test_bookmarklet_post_view_get_prefills_fields(self):
+        self.client.force_login(self.user)
+        test_url = "https://example.com/blog/1"
+        test_title = "My Blog Post"
+        test_desc = "Some text selection"
+
+        response = self.client.get(
+            reverse("bookmark_service:bookmarklet-post"),
+            {"url": test_url, "title": test_title, "description": test_desc}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["url"], test_url)
+        self.assertEqual(response.context["title"], test_title)
+        self.assertEqual(response.context["description"], test_desc)
+
+    def test_bookmarklet_post_view_post_creates_bookmark(self):
+        self.client.force_login(self.user)
+        test_url = "https://example.com/blog/2"
+        test_title = "Another Post"
+        test_desc = "Another selection"
+
+        response = self.client.post(
+            reverse("bookmark_service:bookmarklet-post"),
+            {
+                "action": "bookmark",
+                "url": test_url,
+                "title": test_title,
+                "description": test_desc,
+                "tag_names": "tagA, tagB",
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "bookmarks/bookmarklet_success.html")
+        self.assertTrue(Bookmark.objects.filter(user=self.user, url=test_url).exists())
+        bookmark = Bookmark.objects.get(user=self.user, url=test_url)
+        self.assertEqual(bookmark.title, test_title)
+        self.assertEqual(list(bookmark.tags.values_list("name", flat=True)), ["tagA", "tagB"])
+
+    @patch("apps.rssapp.views.run_rss_worker")
+    @patch("apps.rssapp.forms.discover_feed_url")
+    def test_bookmarklet_post_view_post_creates_feed(self, mock_discover, mock_worker):
+        mock_discover.return_value = {
+            "feed_url": "https://example.com/blog/feed.xml",
+            "title": "Example Blog Feed",
+        }
+        self.client.force_login(self.user)
+        test_url = "https://example.com/blog/feed.xml"
+        test_name = "My RSS Feed"
+
+        response = self.client.post(
+            reverse("bookmark_service:bookmarklet-post"),
+            {
+                "action": "feed",
+                "url": test_url,
+                "name": test_name,
+                "category": "Tech",
+            }
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "bookmarks/bookmarklet_success.html")
+        self.assertTrue(Feed.objects.filter(url=test_url).exists())
+        feed = Feed.objects.get(url=test_url)
+        self.assertEqual(feed.name, test_name)
+        self.assertEqual(feed.category, "Tech")
+        mock_worker.assert_called_once()
+
+    @patch("apps.rssapp.utils.discover_feed_url")
+    def test_feed_discover_view_endpoint(self, mock_discover):
+        mock_discover.return_value = {
+            "feed_url": "https://example.com/discovered.xml",
+            "title": "Discovered Title",
+            "discovered": True,
+            "error": "",
+            "error_detail": "",
+        }
+        self.client.force_login(self.user)
+        response = self.client.get(
+            reverse("rss_service_api:feed-discover"),
+            {"url": "https://example.com"}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["feed_url"], "https://example.com/discovered.xml")
+        self.assertEqual(data["title"], "Discovered Title")
+

@@ -1,0 +1,368 @@
+{% load static vite %}
+<!DOCTYPE html>
+<html lang="ja" class="h-full">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add to Feedee</title>
+    {% include "includes/_theme_head.html" %}
+    {% vite_assets "js/main.js" %}
+</head>
+
+<body
+    class="bg-gray-50 text-gray-900 font-sans antialiased min-h-full flex flex-col justify-center items-center p-4 transition-colors">
+
+    <!-- Centered dialog card -->
+    <div
+        class="w-full max-w-xl bg-white border border-gray-200 shadow-xl rounded-2xl flex flex-col overflow-hidden my-auto"
+        style="max-width: 560px;">
+
+        <!-- Header -->
+        <header
+            class="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-white z-10">
+            <div class="flex items-center gap-2">
+                <div
+                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-sm">
+                    <span class="text-white font-bold text-xs leading-none">F</span>
+                </div>
+                <span class="font-bold text-gray-900 text-base">Feedee</span>
+            </div>
+            <span class="text-xs text-gray-400">Bookmarklet</span>
+        </header>
+
+        <!-- Tabs Navigation -->
+        <div class="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
+            <button id="tab-bookmark-btn" onclick="switchTab('bookmark')" type="button"
+                class="flex-1 py-3 text-sm font-semibold text-center border-b-2 border-brand-600 text-brand-600 focus:outline-none transition-colors">
+                📌 Bookmark
+            </button>
+            <button id="tab-feed-btn" onclick="switchTab('feed')" type="button"
+                class="flex-1 py-3 text-sm font-semibold text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 focus:outline-none transition-colors">
+                📡 RSS Feed
+            </button>
+        </div>
+
+        <!-- Scrollable Content Area -->
+        <main class="flex-1 overflow-y-auto p-6 max-h-[600px]">
+
+            <!-- Feed Discovery status banner (visible when Feed tab is active) -->
+            <div id="discovery-status" class="hidden mb-4 p-3 rounded-lg text-xs font-medium border">
+                <!-- Injected via JavaScript -->
+            </div>
+
+            <!-- Tab: Bookmark Form -->
+            <section id="tab-bookmark" class="space-y-4">
+                <form method="post" action="{% url 'bookmark_service:bookmarklet-post' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="bookmark">
+                    <input type="hidden" name="thumbnail_url" id="bookmark-thumbnail-url" value="">
+
+                    <div class="space-y-4">
+                        <!-- URL -->
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">URL</label>
+                            {{ bookmark_form.url }}
+                            {% if bookmark_form.url.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.url.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Title -->
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Title</label>
+                            {{ bookmark_form.title }}
+                            {% if bookmark_form.title.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.title.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description -->
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Description</label>
+                            {{ bookmark_form.description }}
+                            {% if bookmark_form.description.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Category -->
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Category</label>
+                            {{ bookmark_form.category }}
+                            {% if bookmark_form.category.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.category.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Tags -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Tags
+                                (comma separated)</label>
+                            {{ bookmark_form.tag_names }}
+
+                            {% if existing_tags %}
+                            <div class="mt-2 flex flex-wrap gap-1">
+                                {% for tag in existing_tags %}
+                                <button type="button"
+                                    class="tag-pill inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                                    data-tag-name="{{ tag.name }}" style="border-color: {{ tag.color }}40">
+                                    <span class="w-1.5 h-1.5 rounded-full mr-1.5"
+                                        style="background-color: {{ tag.color }}"></span>
+                                    {{ tag.name }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-6 flex items-center justify-between pt-4 border-t border-gray-200">
+                        <button type="button" onclick="window.close()"
+                            class="text-sm text-gray-500 hover:text-gray-700 font-semibold">Cancel</button>
+                        <button type="submit"
+                            class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm">
+                            Save Bookmark
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Tab: Feed Form -->
+            <section id="tab-feed" class="hidden space-y-4">
+                <form method="post" action="{% url 'bookmark_service:bookmarklet-post' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="feed">
+
+                    <div class="space-y-4">
+                        <!-- URL -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Feed
+                                URL</label>
+                            {{ feed_form.url }}
+                            {% if feed_form.url.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ feed_form.url.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Name -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Feed
+                                Name</label>
+                            {{ feed_form.name }}
+                            {% if feed_form.name.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ feed_form.name.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Category/Group -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Group
+                                (category)</label>
+                            {{ feed_form.category }}
+                            {% if feed_form.category.errors %}
+                            <p class="text-xs text-rose-500 mt-1">{{ feed_form.category.errors.0 }}</p>
+                            {% endif %}
+
+                            {% if feed_categories %}
+                            <div class="mt-2 flex flex-wrap gap-1">
+                                {% for category in feed_categories %}
+                                <button type="button"
+                                    class="feed-group-pill inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+                                    data-group-name="{{ category }}">
+                                    {{ category }}
+                                </button>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-6 flex items-center justify-between pt-4 border-t border-gray-200">
+                        <button type="button" onclick="window.close()"
+                            class="text-sm text-gray-500 hover:text-gray-700 font-semibold">Cancel</button>
+                        <button type="submit"
+                            class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm">
+                            Subscribe to Feed
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // Tab switching logic
+        function switchTab(tab) {
+            const bookmarkBtn = document.getElementById('tab-bookmark-btn');
+            const feedBtn = document.getElementById('tab-feed-btn');
+            const bookmarkSec = document.getElementById('tab-bookmark');
+            const feedSec = document.getElementById('tab-feed');
+            const statusBanner = document.getElementById('discovery-status');
+
+            if (tab === 'bookmark') {
+                bookmarkBtn.className = "flex-1 py-3 text-sm font-semibold text-center border-b-2 border-brand-600 text-brand-600 focus:outline-none transition-colors";
+                feedBtn.className = "flex-1 py-3 text-sm font-semibold text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 focus:outline-none transition-colors";
+                bookmarkSec.classList.remove('hidden');
+                feedSec.classList.add('hidden');
+                statusBanner.classList.add('hidden');
+            } else {
+                feedBtn.className = "flex-1 py-3 text-sm font-semibold text-center border-b-2 border-brand-600 text-brand-600 focus:outline-none transition-colors";
+                bookmarkBtn.className = "flex-1 py-3 text-sm font-semibold text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 focus:outline-none transition-colors";
+                feedSec.classList.remove('hidden');
+                bookmarkSec.classList.add('hidden');
+
+                // Show discovery banner status if we have one
+                if (feedDiscoveryState.message) {
+                    statusBanner.classList.remove('hidden');
+                }
+            }
+        }
+
+        // Keep track of feed discovery state
+        const feedDiscoveryState = {
+            checked: false,
+            loading: false,
+            success: false,
+            message: "",
+            feedUrl: "",
+            feedTitle: ""
+        };
+
+        // Run feed discovery asynchronously on load
+        async function discoverFeed() {
+            const pageUrl = "{{ url|escapejs }}";
+            if (!pageUrl) return;
+
+            feedDiscoveryState.loading = true;
+            updateDiscoveryBanner();
+
+            try {
+                const response = await fetch(`/api/rss/feeds/discover/?url=${encodeURIComponent(pageUrl)}`);
+                if (!response.ok) throw new Error();
+                const data = await response.json();
+
+                if (data.feed_url) {
+                    feedDiscoveryState.success = true;
+                    feedDiscoveryState.feedUrl = data.feed_url;
+                    feedDiscoveryState.feedTitle = data.title || "{{ title|escapejs }}";
+                    feedDiscoveryState.message = `✨ RSS Feed found: <strong>${escapeHTML(feedDiscoveryState.feedTitle)}</strong>`;
+
+                    // Pre-fill Feed form fields
+                    const feedUrlInput = document.querySelector('#tab-feed input[name="url"]');
+                    const feedNameInput = document.querySelector('#tab-feed input[name="name"]');
+                    if (feedUrlInput) feedUrlInput.value = feedDiscoveryState.feedUrl;
+                    if (feedNameInput) feedNameInput.value = feedDiscoveryState.feedTitle;
+
+                    // Automatically switch to Feed tab to guide user
+                    switchTab('feed');
+                } else {
+                    feedDiscoveryState.success = false;
+                    feedDiscoveryState.message = "No RSS/Atom feed detected on this page.";
+                }
+            } catch (e) {
+                feedDiscoveryState.success = false;
+                feedDiscoveryState.message = "Could not check for RSS feeds.";
+            } finally {
+                feedDiscoveryState.loading = false;
+                feedDiscoveryState.checked = true;
+                updateDiscoveryBanner();
+            }
+        }
+
+        function updateDiscoveryBanner() {
+            const banner = document.getElementById('discovery-status');
+            if (feedDiscoveryState.loading) {
+                banner.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-blue-50 border-blue-200 text-blue-700 theme-dark:bg-blue-950/20 theme-dark:border-blue-900 theme-dark:text-blue-200 flex items-center gap-2";
+                banner.innerHTML = `
+                <svg class="animate-spin h-3 w-3 text-blue-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Checking for RSS feed...
+            `;
+                // Only show banner if feed tab is active or discovery is running
+                if (!document.getElementById('tab-feed').classList.contains('hidden')) {
+                    banner.classList.remove('hidden');
+                }
+            } else if (feedDiscoveryState.checked && feedDiscoveryState.message) {
+                if (feedDiscoveryState.success) {
+                    banner.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-emerald-50 border-emerald-200 text-emerald-800 theme-dark:bg-emerald-950/20 theme-dark:border-emerald-900 theme-dark:text-emerald-200";
+                } else {
+                    banner.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-gray-50 border-gray-200 text-gray-600 theme-dark:bg-gray-800 theme-dark:border-gray-700 theme-dark:text-gray-300";
+                }
+                banner.innerHTML = feedDiscoveryState.message;
+                if (!document.getElementById('tab-feed').classList.contains('hidden')) {
+                    banner.classList.remove('hidden');
+                }
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g,
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+
+        // Bookmarklet form interactivity (Tag pills)
+        (function () {
+            const tagInput = document.querySelector('#tab-bookmark input[name="tag_names"]');
+            if (tagInput) {
+                document.querySelectorAll('.tag-pill').forEach(pill => {
+                    pill.addEventListener('click', function () {
+                        const name = pill.dataset.tagName;
+                        let current = tagInput.value.split(',').map(s => s.trim()).filter(Boolean);
+                        const idx = current.indexOf(name);
+                        if (idx >= 0) {
+                            current.splice(idx, 1);
+                            pill.classList.remove('ring-2', 'ring-brand-500');
+                        } else {
+                            current.push(name);
+                            pill.classList.add('ring-2', 'ring-brand-500');
+                        }
+                        tagInput.value = current.join(', ');
+                    });
+
+                    // Highlight active tags on load
+                    const current = tagInput.value.split(',').map(s => s.trim());
+                    if (current.indexOf(pill.dataset.tagName) >= 0) {
+                        pill.classList.add('ring-2', 'ring-brand-500');
+                    }
+                });
+            }
+
+            // Feed group pills
+            const feedGroupInput = document.querySelector('#tab-feed input[name="category"]');
+            if (feedGroupInput) {
+                document.querySelectorAll('.feed-group-pill').forEach(pill => {
+                    pill.addEventListener('click', function () {
+                        feedGroupInput.value = pill.dataset.groupName;
+                        // Highlight selected
+                        document.querySelectorAll('.feed-group-pill').forEach(p => p.classList.remove('ring-2', 'ring-brand-500'));
+                        pill.classList.add('ring-2', 'ring-brand-500');
+                    });
+                });
+            }
+
+            // On load
+            discoverFeed();
+
+            // Restore active tab state if form submission failed (errors present)
+            const activeAction = "{{ request.POST.action|escapejs }}";
+            if (activeAction === 'feed') {
+                switchTab('feed');
+            }
+        })();
+    </script>
+</body>
+
+</html>

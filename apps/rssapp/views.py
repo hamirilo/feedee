@@ -785,7 +785,7 @@ def feed_update_view(request, feed_id):
 @login_required
 def settings_view(request, tab="feeds"):
     """Unified settings page with tabs: feeds, tags, categories, account."""
-    valid_tabs = ["feeds", "tags", "categories", "account"]
+    valid_tabs = ["feeds", "tags", "categories", "account", "bookmarklet"]
     if tab not in valid_tabs:
         return redirect("settings-feeds")
 
@@ -932,6 +932,27 @@ def settings_view(request, tab="feeds"):
                     return redirect("settings-account")
 
         context.update({"profile_form": profile_form, "password_form": password_form})
+
+    # ── Bookmarklet Tab ────────────────────────────────
+    if tab == "bookmarklet":
+        post_url = request.build_absolute_uri(reverse("bookmark_service:bookmarklet-post"))
+        bookmarklet_code = f"""
+javascript:(function(){{
+  var url = encodeURIComponent(window.location.href);
+  var title = encodeURIComponent(document.title);
+  var selection = encodeURIComponent(window.getSelection().toString());
+  var width = 700;
+  var height = 720;
+  var left = (window.screen.width - width) / 2;
+  var top = (window.screen.height - height) / 2;
+  window.open(
+    '{post_url}?url=' + url + '&title=' + title + '&description=' + selection,
+    'feedee_bookmarklet',
+    'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',personalbar=0,toolbar=0,scrollbars=1,resizable=1'
+  );
+}})();
+""".strip()
+        context["bookmarklet_code"] = bookmarklet_code
 
     return render(request, "rss/settings.html", context)
 
@@ -1445,60 +1466,128 @@ class BookmarkletCreateView(APIView):
 @login_required
 def bookmarklet_view(request):
     """Display bookmarklet installation instructions and code."""
-    api_url = request.build_absolute_uri(reverse("bookmarklet-create"))
-    user_token = None
+    post_url = request.build_absolute_uri(reverse("bookmark_service:bookmarklet-post"))
 
-    # Try to get or create user token for API auth
-    if request.user.is_authenticated:
-        from rest_framework.authtoken.models import Token
-
-        try:
-            token = Token.objects.get(user=request.user)
-            user_token = token.key
-        except Token.DoesNotExist:
-            # Token will be created on first API use with session auth
-            pass
-
-    # Generate bookmarklet code (uses current session or token if available)
+    # Generate bookmarklet code (opens the interactive popup window)
     bookmarklet_code = f"""
 javascript:(function(){{
-  var url = window.location.href;
-  var title = document.title;
-  var selection = window.getSelection().toString();
-  
-  var data = {{
-    url: url,
-    title: title,
-    description: selection || 'Saved from: ' + url
-  }};
-  
-  fetch('{api_url}', {{
-    method: 'POST',
-    headers: {{
-      'Content-Type': 'application/json',
-      {f"'Authorization': 'Token {user_token}'," if user_token else "'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',"}
-    }},
-    body: JSON.stringify(data),
-    credentials: 'include'
-  }})
-  .then(r => r.json())
-  .then(d => {{
-    if (d.ok) {{
-      alert('Bookmark saved!');
-    }} else {{
-      alert('Error: ' + (d.error || 'Unknown error'));
-    }}
-  }})
-  .catch(e => alert('Error saving bookmark: ' + e));
+  var url = encodeURIComponent(window.location.href);
+  var title = encodeURIComponent(document.title);
+  var selection = encodeURIComponent(window.getSelection().toString());
+  var width = 700;
+  var height = 720;
+  var left = (window.screen.width - width) / 2;
+  var top = (window.screen.height - height) / 2;
+  window.open(
+    '{post_url}?url=' + url + '&title=' + title + '&description=' + selection,
+    'feedee_bookmarklet',
+    'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',personalbar=0,toolbar=0,scrollbars=1,resizable=1'
+  );
 }})();
 """.strip()
 
     context = {
         "bookmarklet_code": bookmarklet_code,
-        "api_url": api_url,
-        "user_token": user_token,
+        "api_url": post_url,
     }
     return render(request, "bookmarks/bookmarklet_install.html", context)
+
+
+@login_required
+def bookmarklet_post_view(request):
+    """
+    Interactive view for bookmarklet popup.
+    Allows registering either a bookmark or a feed.
+    """
+    url = request.GET.get("url", "").strip() or request.POST.get("url", "").strip()
+    title = request.GET.get("title", "").strip() or request.POST.get("title", "").strip()
+    description = request.GET.get("description", "").strip() or request.POST.get("description", "").strip()
+
+    bookmark_form = BookmarkForm(initial={"url": url, "title": title, "description": description})
+    bookmark_form.fields["category"].queryset = BookmarkCategory.objects.filter(
+        user=request.user
+    ).order_by("display_order")
+    bookmark_form.fields["category"].empty_label = "Uncategorized"
+
+    feed_form = FeedCreateForm(initial={"url": url, "name": title})
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "bookmark":
+            form = BookmarkForm(request.POST)
+            form.fields["category"].queryset = BookmarkCategory.objects.filter(
+                user=request.user
+            ).order_by("display_order")
+            form.fields["category"].empty_label = "Uncategorized"
+
+            if form.is_valid():
+                bookmark = form.save(commit=False)
+                bookmark.user = request.user
+                bookmark.thumbnail_url = request.POST.get("thumbnail_url", "")
+                try:
+                    bookmark.save()
+                    tag_names_str = form.cleaned_data.get("tag_names", "")
+                    _save_bookmark_tags(bookmark, tag_names_str, request.user)
+                    return render(request, "bookmarks/bookmarklet_success.html", {
+                        "type": "bookmark",
+                        "title": bookmark.title,
+                    })
+                except IntegrityError:
+                    form.add_error("url", "This URL is already bookmarked.")
+            bookmark_form = form
+        elif action == "feed":
+            form = FeedCreateForm(request.POST)
+            if form.is_valid():
+                try:
+                    new_feed = form.save(commit=False)
+                    max_order = (
+                        Feed.objects.order_by("-display_order")
+                        .values_list("display_order", flat=True)
+                        .first()
+                    )
+                    new_feed.display_order = (max_order or 0) + 1
+                    new_feed.save()
+                    run_rss_worker()
+                    return render(request, "bookmarks/bookmarklet_success.html", {
+                        "type": "feed",
+                        "title": new_feed.name,
+                    })
+                except IntegrityError:
+                    form.add_error("url", "This feed URL is already subscribed.")
+            feed_form = form
+
+    existing_tags = Tag.objects.filter(user=request.user).order_by("name")
+    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by(
+        "display_order"
+    )
+    
+    feed_categories = Feed.objects.values_list("category", flat=True).distinct()
+    feed_categories = [c for c in feed_categories if c]
+
+    context = {
+        "url": url,
+        "title": title,
+        "description": description,
+        "bookmark_form": bookmark_form,
+        "feed_form": feed_form,
+        "existing_tags": existing_tags,
+        "bookmark_categories": bookmark_categories,
+        "feed_categories": feed_categories,
+    }
+    return render(request, "bookmarks/bookmarklet_popup.html", context)
+
+
+class FeedDiscoverView(APIView):
+    """Endpoint for asynchronous feed discovery."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        url = request.query_params.get("url", "").strip()
+        if not url:
+            return Response({"error": "URL parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+        from .utils import discover_feed_url
+        result = discover_feed_url(url)
+        return Response(result)
 
 
 # ── Bookmark views ──────────────────────────────────────
