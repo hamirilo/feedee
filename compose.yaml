@@ -43,6 +43,26 @@ services:
     environment:
       - VITE_HMR_HOST=${VITE_HMR_HOST:-128.118.27.98}
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-feedee}:${POSTGRES_PASSWORD:-feedee}@db:5432/${POSTGRES_DB:-feedee}
+      - DEBUG=true
+    depends_on:
+      db:
+        condition: service_healthy
+
   rss-worker:
     build:
       context: .
