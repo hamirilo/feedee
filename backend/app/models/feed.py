@@ -26,6 +26,9 @@ class Feed(Base, TimestampMixin):
         DateTime(timezone=True), nullable=True
     )
     fetch_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    etag: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_modified: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
 
     # relationships
     subscriptions: Mapped[list["Subscription"]] = relationship(

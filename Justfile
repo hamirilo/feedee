@@ -69,7 +69,7 @@ dev-bg:
 
 # Stop dev environment
 dev-down:
-    {{compose}} down
+    {{compose}} down --remove-orphans
 
 # Tail dev logs
 dev-logs:
@@ -103,7 +103,7 @@ prod-up: prod-check-env
 
 # Stop production environment
 prod-down:
-    @POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dummy} WORKER_API_TOKEN=${WORKER_API_TOKEN:-dummy} {{compose_prod}} down
+    @POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dummy} WORKER_API_TOKEN=${WORKER_API_TOKEN:-dummy} {{compose_prod}} down --remove-orphans
 
 # Tail production logs
 prod-logs:

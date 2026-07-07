@@ -113,6 +113,9 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column("last_fetched_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("fetch_error", sa.Text, nullable=True),
+        sa.Column("etag", sa.String(255), nullable=True),
+        sa.Column("last_modified", sa.String(255), nullable=True),
+
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

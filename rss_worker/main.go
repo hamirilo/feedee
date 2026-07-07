@@ -21,9 +21,9 @@ import (
 
 const (
 	defaultDjangoBaseURL     = "http://127.0.0.1:8000"
-	feedsEndpoint            = "/api/feeds/"
-	feedStatusEndpointFmt    = "/api/feeds/%d/fetch-status/"
-	ingestEndpoint           = "/api/articles/ingest/"
+	feedsEndpoint            = "/app/worker/feeds"
+	feedStatusEndpointFmt    = "/app/worker/feeds/%s/fetch-status"
+	ingestEndpoint           = "/app/worker/articles/ingest"
 	defaultHTTPTimeoutSec    = 15
 	defaultMaxConcurrency    = 8
 	defaultIngestRetryCount  = 3
@@ -40,7 +40,7 @@ type workerConfig struct {
 }
 
 type Feed struct {
-	ID           int    `json:"id"`
+	ID           string `json:"id"`
 	Name         string `json:"name"`
 	URL          string `json:"url"`
 	Category     string `json:"category,omitempty"`
@@ -49,7 +49,7 @@ type Feed struct {
 }
 
 type IngestArticle struct {
-	FeedID      *int    `json:"feed_id,omitempty"`
+	FeedID      *string `json:"feed_id,omitempty"`
 	Title       string  `json:"title"`
 	Link        string  `json:"link"`
 	GUID        string  `json:"guid,omitempty"`
@@ -124,7 +124,7 @@ type enclosure struct {
 var imgSrcRe = regexp.MustCompile(`<img[^>]+src=["']([^"']+)["']`)
 
 type feedFetchResult struct {
-	FeedID       int
+	FeedID       string
 	FeedName     string
 	FeedURL      string
 	Articles     []IngestArticle
@@ -263,7 +263,7 @@ func fetchFeeds(client *http.Client, cfg workerConfig) ([]Feed, error) {
 		return nil, fmt.Errorf("build feed list request: %w", err)
 	}
 	if cfg.APIToken != "" {
-		req.Header.Set("Authorization", "Token "+cfg.APIToken)
+		req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
 	}
 
 	resp, err := client.Do(req)
@@ -393,7 +393,7 @@ func fetchSingleFeed(client *http.Client, feed Feed) feedFetchResult {
 
 func reportFeedFetchResults(client *http.Client, cfg workerConfig, results []feedFetchResult) {
 	for _, result := range results {
-		if result.FeedID == 0 {
+		if result.FeedID == "" {
 			continue
 		}
 		if err := postFeedFetchStatus(client, cfg, result); err != nil {
@@ -430,7 +430,7 @@ func postFeedFetchStatus(client *http.Client, cfg workerConfig, result feedFetch
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if cfg.APIToken != "" {
-		req.Header.Set("Authorization", "Token "+cfg.APIToken)
+		req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
 	}
 
 	resp, err := client.Do(req)
@@ -446,7 +446,7 @@ func postFeedFetchStatus(client *http.Client, cfg workerConfig, result feedFetch
 	return nil
 }
 
-func parseRSS(xmlData []byte, feedID int) ([]IngestArticle, error) {
+func parseRSS(xmlData []byte, feedID string) ([]IngestArticle, error) {
 	var doc rssDocument
 	if err := xml.Unmarshal(xmlData, &doc); err == nil && len(doc.Channel.Items) > 0 {
 		return parseRSSItems(doc.Channel.Items, feedID), nil
@@ -465,7 +465,7 @@ func parseRSS(xmlData []byte, feedID int) ([]IngestArticle, error) {
 	return parseRSSItems(doc2.Channel.Items, feedID), nil
 }
 
-func parseRSSItems(items []rssItem, feedID int) []IngestArticle {
+func parseRSSItems(items []rssItem, feedID string) []IngestArticle {
 	articles := make([]IngestArticle, 0, len(items))
 	for _, item := range items {
 		title := strings.TrimSpace(item.Title)
@@ -496,7 +496,7 @@ func parseRSSItems(items []rssItem, feedID int) []IngestArticle {
 	return articles
 }
 
-func parseAtomEntries(entries []atomEntry, feedID int) []IngestArticle {
+func parseAtomEntries(entries []atomEntry, feedID string) []IngestArticle {
 	articles := make([]IngestArticle, 0, len(entries))
 	for _, entry := range entries {
 		title := strings.TrimSpace(entry.Title)
@@ -671,7 +671,7 @@ func postIngest(client *http.Client, cfg workerConfig, articles []IngestArticle)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if cfg.APIToken != "" {
-		req.Header.Set("Authorization", "Token "+cfg.APIToken)
+		req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
 	}
 
 	resp, err := client.Do(req)

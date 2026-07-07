@@ -12,36 +12,21 @@ services:
       timeout: 5s
       retries: 5
 
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: >
-      sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8347"
-    volumes:
-      - .:/app
-    ports:
-      - "8347:8347"
-    env_file:
-      - path: .env
-        required: false
-    environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.development
-    depends_on:
-      db:
-        condition: service_healthy
-
-  vite:
+  frontend:
     image: node:22-slim
     working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm install && npm run dev -- -p 3000 -H 0.0.0.0"
     volumes:
-      - .:/app
-      - vite_node_modules:/app/node_modules
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
     ports:
-      - "5847:5847"
+      - "3000:3000"
     environment:
-      - VITE_HMR_HOST=${VITE_HMR_HOST:-128.118.27.98}
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_started
+
 
   backend:
     build:
@@ -51,6 +36,7 @@ services:
       sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./backend:/app
+      - /app/.venv
     ports:
       - "8000:8000"
     env_file:
@@ -59,6 +45,9 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-feedee}:${POSTGRES_PASSWORD:-feedee}@db:5432/${POSTGRES_DB:-feedee}
       - DEBUG=true
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin-password}
+      - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
     depends_on:
       db:
         condition: service_healthy
@@ -71,15 +60,16 @@ services:
       - path: .env
         required: false
     environment:
-      - DJANGO_BASE_URL=http://web:8347
-      - WORKER_API_TOKEN=${WORKER_API_TOKEN:-}
+      - DJANGO_BASE_URL=http://backend:8000
+      - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
       - WORKER_CHECK_INTERVAL_SECONDS=${WORKER_CHECK_INTERVAL_SECONDS:-300}
-      - no_proxy=localhost,127.0.0.1,web,db
-      - NO_PROXY=localhost,127.0.0.1,web,db
+      - no_proxy=localhost,127.0.0.1,backend,db
+      - NO_PROXY=localhost,127.0.0.1,backend,db
     depends_on:
-      - web
+      - backend
     restart: unless-stopped
 
 volumes:
-  vite_node_modules:
+  frontend_node_modules:
   postgres_data:
+
