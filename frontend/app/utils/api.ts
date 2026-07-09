@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
@@ -131,6 +131,14 @@ export const api = {
     }),
   unsubscribeFeed: (feedId: string): Promise<void> =>
     fetchAPI(`/app/feeds/${feedId}`, { method: "DELETE" }),
+  updateSubscription: (feedId: string, payload: { displayName?: string | null; categoryId?: string | null }): Promise<SubscriptionData> =>
+    fetchAPI(`/app/feeds/${feedId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        display_name: payload.displayName,
+        category_id: payload.categoryId,
+      }),
+    }),
 
   // Articles
   getArticles: (params: { isRead?: boolean; isFavorited?: boolean; feedId?: string; categoryId?: string; limit?: number; offset?: number } = {}): Promise<ArticleData[]> => {

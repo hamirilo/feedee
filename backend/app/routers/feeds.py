@@ -24,6 +24,11 @@ class FeedSubscribeRequest(BaseModel):
     display_name: str | None = None
 
 
+class FeedUpdate(BaseModel):
+    display_name: str | None = None
+    category_id: str | None = None
+
+
 class FeedResponse(BaseModel):
     id: str
     url: str
@@ -173,6 +178,66 @@ async def unsubscribe_feed(
 
     await db.delete(sub)
     await db.commit()
+
+
+@router.put("/{feed_id}", response_model=FeedResponse)
+async def update_subscription(
+    feed_id: str,
+    payload: FeedUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        feed_uuid = uuid.UUID(feed_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid feed UUID")
+
+    # Find subscription
+    result = await db.execute(
+        select(Subscription)
+        .options(selectinload(Subscription.feed))
+        .where(
+            Subscription.user_id == current_user.id,
+            Subscription.feed_id == feed_uuid,
+        )
+    )
+    sub = result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    # Update category
+    if payload.category_id is not None:
+        if payload.category_id == "":
+            sub.category_id = None
+        else:
+            try:
+                cat_uuid = uuid.UUID(payload.category_id)
+                cat_check = await db.execute(
+                    select(Category).where(Category.id == cat_uuid, Category.user_id == current_user.id)
+                )
+                if not cat_check.scalar_one_or_none():
+                    raise HTTPException(status_code=400, detail="Category not found")
+                sub.category_id = cat_uuid
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid category UUID")
+
+    # Update display name
+    if payload.display_name is not None:
+        sub.display_name = payload.display_name or sub.feed.title or sub.feed.url
+
+    await db.commit()
+    await db.refresh(sub)
+
+    return FeedResponse(
+        id=str(sub.feed_id),
+        url=sub.feed.url,
+        title=sub.feed.title,
+        site_url=sub.feed.site_url,
+        favicon_url=sub.feed.favicon_url,
+        display_name=sub.display_name,
+        category_id=str(sub.category_id) if sub.category_id else None,
+        order=sub.order,
+    )
 
 
 @router.get("/articles", response_model=list[ArticleResponse])

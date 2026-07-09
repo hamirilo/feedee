@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add to Feedee</title>
+    <title>Feedee に追加</title>
     {% include "includes/_theme_head.html" %}
     {% vite_assets "js/main.js" %}
 </head>
@@ -28,18 +28,18 @@
                 </div>
                 <span class="font-bold text-gray-900 text-base">Feedee</span>
             </div>
-            <span class="text-xs text-gray-400">Bookmarklet</span>
+            <span class="text-xs text-gray-405">ブックマークレット</span>
         </header>
 
         <!-- Tabs Navigation -->
         <div class="flex border-b border-gray-200 bg-gray-50 flex-shrink-0">
             <button id="tab-bookmark-btn" onclick="switchTab('bookmark')" type="button"
                 class="flex-1 py-3 text-sm font-semibold text-center border-b-2 border-brand-600 text-brand-600 focus:outline-none transition-colors">
-                📌 Bookmark
+                📌 ブックマーク
             </button>
             <button id="tab-feed-btn" onclick="switchTab('feed')" type="button"
                 class="flex-1 py-3 text-sm font-semibold text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 focus:outline-none transition-colors">
-                📡 RSS Feed
+                📡 RSSフィード
             </button>
         </div>
 
@@ -72,7 +72,7 @@
                         <!-- Title -->
                         <div>
                             <label
-                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Title</label>
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">タイトル</label>
                             {{ bookmark_form.title }}
                             {% if bookmark_form.title.errors %}
                             <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.title.errors.0 }}</p>
@@ -82,7 +82,7 @@
                         <!-- Description -->
                         <div>
                             <label
-                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Description</label>
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">説明</label>
                             {{ bookmark_form.description }}
                             {% if bookmark_form.description.errors %}
                             <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.description.errors.0 }}</p>
@@ -92,7 +92,7 @@
                         <!-- Category -->
                         <div>
                             <label
-                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Category</label>
+                                class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">カテゴリ</label>
                             {{ bookmark_form.category }}
                             {% if bookmark_form.category.errors %}
                             <p class="text-xs text-rose-500 mt-1">{{ bookmark_form.category.errors.0 }}</p>
@@ -101,8 +101,7 @@
 
                         <!-- Tags -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Tags
-                                (comma separated)</label>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">タグ（カンマ区切り）</label>
                             {{ bookmark_form.tag_names }}
 
                             {% if existing_tags %}
@@ -124,10 +123,10 @@
                     <!-- Actions -->
                     <div class="mt-6 flex items-center justify-between pt-4 border-t border-gray-200">
                         <button type="button" onclick="window.close()"
-                            class="text-sm text-gray-500 hover:text-gray-700 font-semibold">Cancel</button>
+                            class="text-sm text-gray-505 hover:text-gray-700 font-semibold">キャンセル</button>
                         <button type="submit"
                             class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm">
-                            Save Bookmark
+                            ブックマークを保存
                         </button>
                     </div>
                 </form>
@@ -142,8 +141,7 @@
                     <div class="space-y-4">
                         <!-- URL -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Feed
-                                URL</label>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">フィード URL</label>
                             {{ feed_form.url }}
                             {% if feed_form.url.errors %}
                             <p class="text-xs text-rose-500 mt-1">{{ feed_form.url.errors.0 }}</p>
@@ -152,8 +150,7 @@
 
                         <!-- Name -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Feed
-                                Name</label>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">フィード名</label>
                             {{ feed_form.name }}
                             {% if feed_form.name.errors %}
                             <p class="text-xs text-rose-500 mt-1">{{ feed_form.name.errors.0 }}</p>
@@ -162,8 +159,7 @@
 
                         <!-- Category/Group -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Group
-                                (category)</label>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">グループ（カテゴリ）</label>
                             {{ feed_form.category }}
                             {% if feed_form.category.errors %}
                             <p class="text-xs text-rose-500 mt-1">{{ feed_form.category.errors.0 }}</p>
@@ -186,10 +182,10 @@
                     <!-- Actions -->
                     <div class="mt-6 flex items-center justify-between pt-4 border-t border-gray-200">
                         <button type="button" onclick="window.close()"
-                            class="text-sm text-gray-500 hover:text-gray-700 font-semibold">Cancel</button>
+                            class="text-sm text-gray-505 hover:text-gray-700 font-semibold">キャンセル</button>
                         <button type="submit"
                             class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm">
-                            Subscribe to Feed
+                            フィードを購読
                         </button>
                     </div>
                 </form>
@@ -253,7 +249,7 @@
                     feedDiscoveryState.success = true;
                     feedDiscoveryState.feedUrl = data.feed_url;
                     feedDiscoveryState.feedTitle = data.title || "{{ title|escapejs }}";
-                    feedDiscoveryState.message = `✨ RSS Feed found: <strong>${escapeHTML(feedDiscoveryState.feedTitle)}</strong>`;
+                    feedDiscoveryState.message = `✨ RSSフィードが見つかりました: <strong>${escapeHTML(feedDiscoveryState.feedTitle)}</strong>`;
 
                     // Pre-fill Feed form fields
                     const feedUrlInput = document.querySelector('#tab-feed input[name="url"]');
@@ -265,11 +261,11 @@
                     switchTab('feed');
                 } else {
                     feedDiscoveryState.success = false;
-                    feedDiscoveryState.message = "No RSS/Atom feed detected on this page.";
+                    feedDiscoveryState.message = "このページからRSS/Atomフィードは検出されませんでした。";
                 }
             } catch (e) {
                 feedDiscoveryState.success = false;
-                feedDiscoveryState.message = "Could not check for RSS feeds.";
+                feedDiscoveryState.message = "RSSフィードの検出に失敗しました。";
             } finally {
                 feedDiscoveryState.loading = false;
                 feedDiscoveryState.checked = true;
@@ -286,7 +282,7 @@
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Checking for RSS feed...
+                RSSフィードを検出中...
             `;
                 // Only show banner if feed tab is active or discovery is running
                 if (!document.getElementById('tab-feed').classList.contains('hidden')) {

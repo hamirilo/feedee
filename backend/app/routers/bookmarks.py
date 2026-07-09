@@ -161,15 +161,38 @@ async def create_bookmark(
         )
         tags_list = tag_result.scalars().all()
 
+    # Auto-fetch OGP if fields are missing
+    ogp_title = payload.title
+    ogp_desc = payload.description
+    ogp_thumb = payload.thumbnail_url
+
+    if not ogp_title or not ogp_desc or not ogp_thumb:
+        from app.utils.ogp import fetch_ogp
+        ogp_data = await fetch_ogp(payload.url)
+        if not ogp_title:
+            if ogp_data.get("title"):
+                ogp_title = ogp_data["title"]
+            else:
+                from urllib.parse import urlparse
+                try:
+                    parsed = urlparse(payload.url)
+                    ogp_title = parsed.netloc or payload.url
+                except Exception:
+                    ogp_title = payload.url
+        if not ogp_desc:
+            ogp_desc = ogp_data.get("description")
+        if not ogp_thumb:
+            ogp_thumb = ogp_data.get("thumbnail_url")
+
     # Create Bookmark
     bookmark = Bookmark(
         user_id=current_user.id,
         category_id=cat_uuid,
         bookmark_type=payload.bookmark_type,
         url=payload.url,
-        title=payload.title,
-        description=payload.description,
-        thumbnail_url=payload.thumbnail_url,
+        title=ogp_title,
+        description=ogp_desc,
+        thumbnail_url=ogp_thumb,
         note=payload.note,
         tags=tags_list,
     )
@@ -185,7 +208,14 @@ async def create_bookmark(
     )
     db.add(user_state)
     await db.commit()
-    await db.refresh(bookmark)
+
+    # Re-fetch with selectinload to avoid lazy-loading MissingGreenlet error on bookmark.tags
+    result = await db.execute(
+        select(Bookmark)
+        .options(selectinload(Bookmark.tags))
+        .where(Bookmark.id == bookmark.id)
+    )
+    bookmark = result.scalar_one()
 
     return BookmarkResponse(
         id=str(bookmark.id),

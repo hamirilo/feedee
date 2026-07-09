@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Saved! - Feedee</title>
+    <title>保存完了！ - Feedee</title>
     {% include "includes/_theme_head.html" %}
     {% vite_assets "js/main.js" %}
     <style>
@@ -59,26 +59,26 @@
             </svg>
         </div>
 
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Saved successfully!</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">正常に保存されました！</h1>
         
         <p class="text-sm text-gray-500 mb-6">
             {% if type == 'bookmark' %}
-                Bookmark <strong>"{{ title }}"</strong> has been added to Feedee.
+                ブックマーク <strong>「{{ title }}」</strong> が Feedee に追加されました。
             {% else %}
-                RSS Feed <strong>"{{ title }}"</strong> has been subscribed. Articles will be fetched shortly.
+                RSSフィード <strong>「{{ title }}」</strong> を購読しました。記事はまもなく取得されます。
             {% endif %}
         </p>
 
         <!-- Countdown Banner -->
         <div class="mb-6 py-2 px-4 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold inline-block theme-dark:bg-emerald-950/50 theme-dark:text-emerald-300">
-            Closing window in <span id="countdown">3</span> seconds...
+            <span id="countdown">3</span> 秒後にウィンドウを閉じます...
         </div>
 
         <!-- Manual Action -->
         <div>
             <button onclick="window.close()" 
                     class="w-full inline-flex justify-center items-center rounded-lg bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 text-sm font-semibold transition-colors shadow-sm theme-dark:bg-white theme-dark:hover:bg-gray-100 theme-dark:text-gray-900">
-                Close Window
+                ウィンドウを閉じる
             </button>
         </div>
     </div>

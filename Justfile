@@ -59,12 +59,14 @@ default:
 #  Development (Docker)
 # ===================================================================
 
-# Start dev environment in foreground
+# Start dev environment in foreground (auto-cleans frontend cache)
 dev:
+    rm -rf frontend/.next
     {{compose}} up --build
 
-# Start dev environment in background
+# Start dev environment in background (auto-cleans frontend cache)
 dev-bg:
+    rm -rf frontend/.next
     {{compose}} up --build -d
 
 # Stop dev environment
@@ -144,6 +146,7 @@ local-superuser:
 # Collect static files locally
 local-collectstatic:
     {{python_run}} manage.py collectstatic --noinput
+
 
 # ===================================================================
 #  Testing, Linting & Formatting
