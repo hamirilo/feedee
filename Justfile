@@ -27,15 +27,15 @@ default:
     printf "  \033[32mjust prod-down\033[0m           Stop production environment\n"
     printf "  \033[32mjust prod-logs\033[0m           Tail production logs\n"
     printf "  \033[32mjust prod-build\033[0m          Build production images\n"
-    printf "  \033[32mjust prod-migrate\033[0m        Run migrations in production environment\n"
-    printf "  \033[32mjust prod-shell\033[0m          Open Django shell in production environment\n\n"
+    printf "  \033[32mjust prod-migrate\033[0m        Run database migrations in production\n"
+    printf "  \033[32mjust prod-superuser\033[0m      Create a superuser in production\n"
+    printf "  \033[32mjust prod-shell\033[0m          Open python shell in production backend\n\n"
 
     printf "\033[1;34m💻 Local Development (Direct OS)\033[0m\n"
-    printf "  \033[32mjust local-migrate\033[0m       Run Django migrations locally\n"
-    printf "  \033[32mjust local-shell\033[0m         Open Django shell locally\n"
+    printf "  \033[32mjust local-migrate\033[0m       Run database migrations locally\n"
+    printf "  \033[32mjust local-shell\033[0m         Open python shell locally\n"
     printf "  \033[32mjust local-worker\033[0m        Run RSS worker locally\n"
-    printf "  \033[32mjust local-superuser\033[0m     Create Django superuser locally\n"
-    printf "  \033[32mjust local-collectstatic\033[0m Collect static files locally\n\n"
+    printf "  \033[32mjust local-superuser\033[0m     Create a superuser locally\n\n"
 
     printf "\033[1;34m🛠️  Testing & Code Quality\033[0m\n"
     printf "  \033[32mjust test\033[0m                Run Django tests\n"
@@ -115,37 +115,37 @@ prod-logs:
 prod-build: prod-check-env
     {{compose_prod}} build
 
-# Run migrations in production environment
+# Run database migrations in production environment
 prod-migrate: prod-check-env
-    {{compose_prod}} exec web python manage.py migrate --noinput
+    {{compose_prod}} exec backend uv run alembic upgrade head
 
-# Open Django shell in production environment
+# Create superuser in production environment
+prod-superuser: prod-check-env
+    {{compose_prod}} exec backend python -m app.create_superuser
+
+# Open interactive shell in production environment
 prod-shell: prod-check-env
-    {{compose_prod}} exec web python manage.py shell
+    {{compose_prod}} exec backend python
 
 # ===================================================================
 #  Local Development (Direct Execution)
 # ===================================================================
 
-# Run Django migrations locally
+# Run database migrations locally
 local-migrate:
-    {{python_run}} manage.py migrate
+    cd backend && uv run alembic upgrade head
 
-# Open Django shell locally
+# Open python shell locally
 local-shell:
-    {{python_run}} manage.py shell
+    cd backend && uv run python
 
 # Run RSS worker locally
 local-worker:
     go run rss_worker/main.go
 
-# Create Django superuser locally
+# Create superuser locally
 local-superuser:
-    {{python_run}} manage.py createsuperuser
-
-# Collect static files locally
-local-collectstatic:
-    {{python_run}} manage.py collectstatic --noinput
+    cd backend && uv run python -m app.create_superuser
 
 
 # ===================================================================
