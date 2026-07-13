@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   api,
+  TOKEN_KEY,
   CategoryData,
   TagData,
   SubscriptionData,
@@ -35,9 +36,10 @@ import {
   Trash2,
   Pin,
   Edit,
+  X,
 } from "lucide-react";
 
-type Section = "inbox" | "someday" | "bookmarks_content" | "bookmarks_resource" | "rss";
+type Section = "inbox" | "someday" | "bookmarks_content" | "bookmarks_resource" | "rss" | "pinned" | "favorites";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -95,9 +97,12 @@ export default function Dashboard() {
   const [rssFilterRead, setRssFilterRead] = useState<boolean | undefined>(undefined);
   const [rssFilterFav, setRssFilterFav] = useState<boolean | undefined>(undefined);
 
+  // Favorites subtab state
+  const [favSubTab, setFavSubTab] = useState<"articles" | "bookmarks">("articles");
+
   // Load basic items on mount
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
       router.push("/login");
       return;
@@ -181,6 +186,18 @@ export default function Dashboard() {
           isFavorited: rssFilterFav,
         });
         setArticles(data);
+      } else if (section === "pinned") {
+        const data = await api.getBookmarks({
+          isPinned: true,
+        });
+        setBookmarks(data);
+      } else if (section === "favorites") {
+        const [favBookmarks, favArticles] = await Promise.all([
+          api.getBookmarks({ isFavorited: true }),
+          api.getArticles({ isFavorited: true }),
+        ]);
+        setBookmarks(favBookmarks);
+        setArticles(favArticles);
       }
     } catch (err) {
       console.error(`Failed to refresh ${section} content`, err);
@@ -189,13 +206,13 @@ export default function Dashboard() {
 
   // Trigger content reload when section/filter changes
   useEffect(() => {
-    if (localStorage.getItem("access_token")) {
+    if (localStorage.getItem(TOKEN_KEY)) {
       refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
     }
   }, [activeSection, selectedFeedId, selectedCategoryId, selectedTagId, rssFilterRead, rssFilterFav]);
 
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
+    localStorage.removeItem(TOKEN_KEY);
     router.push("/login");
   };
 
@@ -484,6 +501,44 @@ export default function Dashboard() {
                 </span>
               )}
             </button>
+
+            <button
+              onClick={() => {
+                setActiveSection("pinned");
+                setSelectedFeedId(null);
+                setSelectedCategoryId(null);
+                setSelectedTagId(null);
+              }}
+              className={`flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                activeSection === "pinned"
+                  ? "bg-amber-600/10 text-amber-500 dark:text-amber-400 border border-amber-500/20"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <Pin className="h-4 w-4" />
+                ピン留め
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveSection("favorites");
+                setSelectedFeedId(null);
+                setSelectedCategoryId(null);
+                setSelectedTagId(null);
+              }}
+              className={`flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                activeSection === "favorites"
+                  ? "bg-rose-600/10 text-rose-500 dark:text-rose-400 border border-rose-500/20"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <Heart className="h-4 w-4" />
+                お気に入り
+              </span>
+            </button>
           </nav>
 
           {/* Bookmarks Split */}
@@ -663,7 +718,7 @@ export default function Dashboard() {
             </button>
 
             {/* View Mode controls */}
-            {activeSection === "rss" && (
+            {(activeSection === "rss" || (activeSection === "favorites" && favSubTab === "articles")) && (
               <div className="flex items-center rounded-lg border border-gray-200 dark:border-gray-800 p-0.5 bg-white dark:bg-gray-950/30">
                 <button
                   onClick={() => setViewMode("card")}
@@ -722,6 +777,32 @@ export default function Dashboard() {
 
         {/* Workspace Content Area */}
         <div className="flex-1 overflow-y-auto p-8">
+          {/* Subtabs for Favorites view */}
+          {activeSection === "favorites" && (
+            <div className="flex border-b border-gray-200 dark:border-gray-800/40 pb-px mb-6 transition-colors duration-200">
+              <button
+                onClick={() => setFavSubTab("articles")}
+                className={`py-2 px-4 text-sm font-semibold border-b-2 transition-all ${
+                  favSubTab === "articles"
+                    ? "border-rose-500 text-rose-500 dark:text-rose-400"
+                    : "border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                お気に入り記事
+              </button>
+              <button
+                onClick={() => setFavSubTab("bookmarks")}
+                className={`py-2 px-4 text-sm font-semibold border-b-2 transition-all ${
+                  favSubTab === "bookmarks"
+                    ? "border-rose-500 text-rose-500 dark:text-rose-400"
+                    : "border-transparent text-gray-500 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                お気に入りブックマーク
+              </button>
+            </div>
+          )}
+
           {/* SECTION: INBOX */}
           {activeSection === "inbox" && (
             <div className="max-w-4xl mx-auto space-y-6">
@@ -860,15 +941,19 @@ export default function Dashboard() {
           )}
 
           {/* SECTION: RSS ARTICLES */}
-          {activeSection === "rss" && (
+          {(activeSection === "rss" || (activeSection === "favorites" && favSubTab === "articles")) && (
             <div className="space-y-6">
               <div className="flex flex-col">
                 <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {selectedFeedId
+                  {activeSection === "favorites"
+                    ? "お気に入り記事"
+                    : selectedFeedId
                     ? subscriptions.find((s) => s.id === selectedFeedId)?.display_name || "Feed Articles"
                     : "Aggregated RSS Articles"}
                 </h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Read your subscribed channels</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                  {activeSection === "favorites" ? "お気に入りに登録されたRSS記事" : "Read your subscribed channels"}
+                </p>
               </div>
 
               {filteredArticles.length === 0 ? (
@@ -959,16 +1044,23 @@ export default function Dashboard() {
           )}
 
           {/* SECTION: BOOKMARKS */}
-          {(activeSection === "bookmarks_content" || activeSection === "bookmarks_resource") && (
+          {(activeSection === "bookmarks_content" ||
+            activeSection === "bookmarks_resource" ||
+            activeSection === "pinned" ||
+            (activeSection === "favorites" && favSubTab === "bookmarks")) && (
             <div className="space-y-6">
               <div className="flex flex-col">
                 <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {activeSection === "bookmarks_content" ? "コンテンツアーカイブ" : "リソースディレクトリ"}
+                  {activeSection === "bookmarks_content" && "コンテンツアーカイブ"}
+                  {activeSection === "bookmarks_resource" && "リソースディレクトリ"}
+                  {activeSection === "pinned" && "ピン留め一覧"}
+                  {activeSection === "favorites" && "お気に入りブックマーク"}
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                  {activeSection === "bookmarks_content"
-                    ? "永久に保存された長文記事、アイデア、コラム"
-                    : "開発ツールキット、アイコン、ライブラリ、ユーティリティ"}
+                  {activeSection === "bookmarks_content" && "永久に保存された長文記事、アイデア、コラム"}
+                  {activeSection === "bookmarks_resource" && "開発ツールキット、アイコン、ライブラリ、ユーティリティ"}
+                  {activeSection === "pinned" && "ピン留めされたブックマーク"}
+                  {activeSection === "favorites" && "お気に入りに登録されたブックマーク"}
                 </p>
               </div>
 
@@ -1109,26 +1201,29 @@ export default function Dashboard() {
               <span className="text-xs text-gray-500 uppercase tracking-widest font-mono">
                 {selectedArticle.feed_title || "RSS Article"}
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleSendArticleToInbox(selectedArticle)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 transition-colors"
+                  className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/20 transition-all"
+                  title="受信トレイ (後で読む) に送る"
                 >
-                  Send to Inbox (Read Later)
+                  <Inbox className="h-5 w-5" />
                 </button>
                 <button
                   onClick={() => toggleArticleFavorite(selectedArticle)}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    selectedArticle.is_favorited ? "text-amber-500 dark:text-amber-400" : "text-gray-500"
+                  className={`p-2 rounded-lg hover:bg-rose-500/10 border border-transparent transition-all ${
+                    selectedArticle.is_favorited ? "text-rose-500" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                   }`}
+                  title={selectedArticle.is_favorited ? "お気に入り解除" : "お気に入り登録"}
                 >
-                  Favorite
+                  <Heart className={`h-5 w-5 ${selectedArticle.is_favorited ? "fill-current" : ""}`} />
                 </button>
                 <button
                   onClick={() => setSelectedArticle(null)}
-                  className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors text-sm font-semibold px-2"
+                  className="p-2 rounded-lg text-gray-500 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-all border border-transparent"
+                  title="閉じる"
                 >
-                  Close
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -1258,15 +1353,60 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Type</label>
-                <select
-                  value={newBookmarkType}
-                  onChange={(e) => setNewBookmarkType(e.target.value as "content" | "resource")}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
-                >
-                  <option value="content">Content (Column / Read-only)</option>
-                  <option value="resource">Resource (Tool / Reference)</option>
-                </select>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Type</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Option 1: Content */}
+                  <label
+                    onClick={() => setNewBookmarkType("content")}
+                    className={`relative flex cursor-pointer rounded-xl border p-4 focus:outline-none transition-all ${
+                      newBookmarkType === "content"
+                        ? "border-blue-600 bg-blue-500/5 ring-1 ring-blue-500 dark:border-blue-500 dark:bg-blue-500/5"
+                        : "border-gray-300 bg-white hover:border-gray-400 dark:border-gray-800 dark:bg-gray-950/20 dark:hover:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex flex-1">
+                      <div className="flex flex-col">
+                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                          コンテンツ
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                          コラム、ニュース、長文記事など
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`shrink-0 self-center ${newBookmarkType === "content" ? "text-blue-500" : "text-transparent"}`}>
+                      <svg className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Resource */}
+                  <label
+                    onClick={() => setNewBookmarkType("resource")}
+                    className={`relative flex cursor-pointer rounded-xl border p-4 focus:outline-none transition-all ${
+                      newBookmarkType === "resource"
+                        ? "border-blue-600 bg-blue-500/5 ring-1 ring-blue-500 dark:border-blue-500 dark:bg-blue-500/5"
+                        : "border-gray-300 bg-white hover:border-gray-400 dark:border-gray-800 dark:bg-gray-950/20 dark:hover:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex flex-1">
+                      <div className="flex flex-col">
+                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                          リソース
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                          開発ツール、ライブラリ、Webサイトなど
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`shrink-0 self-center ${newBookmarkType === "resource" ? "text-blue-500" : "text-transparent"}`}>
+                      <svg className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div>
@@ -1371,15 +1511,60 @@ export default function Dashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Type</label>
-                <select
-                  value={editBookmarkType}
-                  onChange={(e) => setEditBookmarkType(e.target.value as "content" | "resource")}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
-                >
-                  <option value="content">Content (Column / Read-only)</option>
-                  <option value="resource">Resource (Tool / Reference)</option>
-                </select>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Type</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Option 1: Content */}
+                  <label
+                    onClick={() => setEditBookmarkType("content")}
+                    className={`relative flex cursor-pointer rounded-xl border p-4 focus:outline-none transition-all ${
+                      editBookmarkType === "content"
+                        ? "border-blue-600 bg-blue-500/5 ring-1 ring-blue-500 dark:border-blue-500 dark:bg-blue-500/5"
+                        : "border-gray-300 bg-white hover:border-gray-400 dark:border-gray-800 dark:bg-gray-950/20 dark:hover:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex flex-1">
+                      <div className="flex flex-col">
+                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                          コンテンツ
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                          コラム、ニュース、長文記事など
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`shrink-0 self-center ${editBookmarkType === "content" ? "text-blue-500" : "text-transparent"}`}>
+                      <svg className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Resource */}
+                  <label
+                    onClick={() => setEditBookmarkType("resource")}
+                    className={`relative flex cursor-pointer rounded-xl border p-4 focus:outline-none transition-all ${
+                      editBookmarkType === "resource"
+                        ? "border-blue-600 bg-blue-500/5 ring-1 ring-blue-500 dark:border-blue-500 dark:bg-blue-500/5"
+                        : "border-gray-300 bg-white hover:border-gray-400 dark:border-gray-800 dark:bg-gray-950/20 dark:hover:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex flex-1">
+                      <div className="flex flex-col">
+                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                          リソース
+                        </span>
+                        <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                          開発ツール、ライブラリ、Webサイトなど
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`shrink-0 self-center ${editBookmarkType === "resource" ? "text-blue-500" : "text-transparent"}`}>
+                      <svg className="h-5 w-5 fill-current" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div>

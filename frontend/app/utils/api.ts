@@ -1,7 +1,9 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+export const TOKEN_KEY = process.env.NODE_ENV === "development" ? "feedee_token_dev" : "feedee_token_prod";
+
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
 
   const headers = new Headers(options.headers);
   if (token) {
@@ -18,7 +20,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
   if (response.status === 401) {
     if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-      localStorage.removeItem("access_token");
+      localStorage.removeItem(TOKEN_KEY);
       window.location.href = "/login";
     }
     throw new Error("Unauthorized");

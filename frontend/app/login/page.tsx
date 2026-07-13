@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/app/utils/api";
+import { api, TOKEN_KEY } from "@/app/utils/api";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     try {
       const res = await api.login(username, password);
-      localStorage.setItem("access_token", res.access_token);
+      localStorage.setItem(TOKEN_KEY, res.access_token);
       router.push("/");
     } catch (err: any) {
       setError(err.message || "Invalid credentials. Please try again.");

@@ -1,11 +1,10 @@
-from typing import Annotated
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.article import Article
@@ -113,7 +112,6 @@ async def add_to_inbox(
     )
     db.add(item)
     await db.commit()
-    await db.refresh(item)
     return item
 
 
@@ -129,7 +127,9 @@ async def delete_inbox_item(
         raise HTTPException(status_code=400, detail="Invalid item UUID")
 
     result = await db.execute(
-        select(ReadingItem).where(ReadingItem.id == item_uuid, ReadingItem.user_id == current_user.id)
+        select(ReadingItem).where(
+            ReadingItem.id == item_uuid, ReadingItem.user_id == current_user.id
+        )
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -151,7 +151,9 @@ async def snooze_to_someday(
         raise HTTPException(status_code=400, detail="Invalid item UUID")
 
     result = await db.execute(
-        select(ReadingItem).where(ReadingItem.id == item_uuid, ReadingItem.user_id == current_user.id)
+        select(ReadingItem).where(
+            ReadingItem.id == item_uuid, ReadingItem.user_id == current_user.id
+        )
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -171,7 +173,6 @@ async def snooze_to_someday(
     db.add(someday_item)
     await db.delete(item)
     await db.commit()
-    await db.refresh(someday_item)
     return someday_item
 
 
@@ -201,7 +202,9 @@ async def delete_someday_item(
         raise HTTPException(status_code=400, detail="Invalid item UUID")
 
     result = await db.execute(
-        select(SomedayItem).where(SomedayItem.id == item_uuid, SomedayItem.user_id == current_user.id)
+        select(SomedayItem).where(
+            SomedayItem.id == item_uuid, SomedayItem.user_id == current_user.id
+        )
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -223,7 +226,9 @@ async def unsnooze_to_inbox(
         raise HTTPException(status_code=400, detail="Invalid item UUID")
 
     result = await db.execute(
-        select(SomedayItem).where(SomedayItem.id == item_uuid, SomedayItem.user_id == current_user.id)
+        select(SomedayItem).where(
+            SomedayItem.id == item_uuid, SomedayItem.user_id == current_user.id
+        )
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -243,6 +248,4 @@ async def unsnooze_to_inbox(
     db.add(inbox_item)
     await db.delete(item)
     await db.commit()
-    await db.refresh(inbox_item)
     return inbox_item
-
