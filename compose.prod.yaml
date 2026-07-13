@@ -49,7 +49,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin-password}
       - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-'["http://localhost:8082","http://127.0.0.1:8082","http://192.168.1.50:8082"]'}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-["http://localhost:8082","http://127.0.0.1:8082","http://192.168.1.50:8082"]}
       - SECRET_KEY=${FASTAPI_SECRET_KEY:-change-me-to-a-random-secret-key}
     depends_on:
       db:
