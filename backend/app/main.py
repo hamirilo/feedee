@@ -42,6 +42,14 @@ async def lifespan(app: FastAPI):
             logger.error(f"Error during admin user check/creation: {e}")
             await session.rollback()
 
+    # Run migration from SQLite if db.sqlite3 exists
+    async with AsyncSessionLocal() as session:
+        try:
+            from app.migrate import run_migration
+            await run_migration(session)
+        except Exception as e:
+            logger.error(f"Error during SQLite to Postgres migration: {e}")
+
     yield
 
 

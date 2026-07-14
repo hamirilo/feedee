@@ -100,6 +100,17 @@ export default function Dashboard() {
   // Favorites subtab state
   const [favSubTab, setFavSubTab] = useState<"articles" | "bookmarks">("articles");
 
+  // Category creation states
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState("#6b7280");
+  const [newCategoryScope, setNewCategoryScope] = useState<"rss" | "bookmark">("bookmark");
+
+  // Tag creation states
+  const [showAddTag, setShowAddTag] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#6b7280");
+
   // Load basic items on mount
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -214,6 +225,34 @@ export default function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY);
     router.push("/login");
+  };
+
+  // Add Category Handler
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createCategory(newCategoryName, newCategoryColor, newCategoryScope);
+      setShowAddCategory(false);
+      setNewCategoryName("");
+      setNewCategoryColor("#6b7280");
+      loadInitialData();
+    } catch (err: any) {
+      alert(err.message || "Failed to create category");
+    }
+  };
+
+  // Add Tag Handler
+  const handleAddTag = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.createTag(newTagName, newTagColor);
+      setShowAddTag(false);
+      setNewTagName("");
+      setNewTagColor("#6b7280");
+      loadInitialData();
+    } catch (err: any) {
+      alert(err.message || "Failed to create tag");
+    }
   };
 
   // Add Feed Handler
@@ -540,12 +579,34 @@ export default function Dashboard() {
               </span>
             </button>
           </nav>
-
+          
           {/* Bookmarks Split */}
           <nav className="p-4 space-y-1 border-b border-gray-200 dark:border-gray-800/40 transition-colors duration-200">
-            <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 mb-2">
-              ブックマーク
-            </span>
+            <div className="flex items-center justify-between px-3 mb-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                ブックマーク
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setNewCategoryScope("bookmark");
+                    setShowAddCategory(true);
+                  }}
+                  className="text-gray-550 dark:text-gray-450 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  title="カテゴリ追加"
+                >
+                  <Folder className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setShowAddTag(true)}
+                  className="text-gray-550 dark:text-gray-450 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  title="タグ追加"
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            
             <button
               onClick={() => {
                 setActiveSection("bookmarks_content");
@@ -554,7 +615,7 @@ export default function Dashboard() {
                 setSelectedTagId(null);
               }}
               className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeSection === "bookmarks_content"
+                activeSection === "bookmarks_content" && selectedCategoryId === null && selectedTagId === null
                   ? "bg-indigo-600/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
@@ -570,7 +631,7 @@ export default function Dashboard() {
                 setSelectedTagId(null);
               }}
               className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                activeSection === "bookmarks_resource"
+                activeSection === "bookmarks_resource" && selectedCategoryId === null && selectedTagId === null
                   ? "bg-emerald-600/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20"
                   : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
@@ -578,22 +639,96 @@ export default function Dashboard() {
               <ExternalLink className="h-4 w-4" />
               リソースディレクトリ
             </button>
+
+            {/* Bookmark Categories */}
+            {categories.filter(c => c.scope === "bookmark").length > 0 && (
+              <div className="pt-2">
+                <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-550 px-3 uppercase tracking-wider mb-1">Categories</span>
+                {categories.filter(c => c.scope === "bookmark").map((cat) => {
+                  const isCatActive = selectedCategoryId === cat.id;
+                  return (
+                    <div
+                      key={cat.id}
+                      onClick={() => {
+                        if (activeSection !== "bookmarks_content" && activeSection !== "bookmarks_resource") {
+                          setActiveSection("bookmarks_content");
+                        }
+                        setSelectedCategoryId(cat.id);
+                        setSelectedTagId(null);
+                      }}
+                      className={`group flex w-full items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors truncate cursor-pointer ${
+                        isCatActive
+                          ? "bg-indigo-600/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/10"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-105 dark:hover:bg-gray-800/20"
+                      }`}
+                    >
+                      <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: cat.color }} />
+                      <span className="truncate">{cat.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Tags */}
+            {tags.length > 0 && (
+              <div className="pt-2">
+                <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-550 px-3 uppercase tracking-wider mb-1">Tags</span>
+                <div className="flex flex-wrap gap-1.5 px-3 py-1">
+                  {tags.map((tag) => {
+                    const isTagActive = selectedTagId === tag.id;
+                    return (
+                      <span
+                        key={tag.id}
+                        onClick={() => {
+                          if (activeSection !== "bookmarks_content" && activeSection !== "bookmarks_resource") {
+                            setActiveSection("bookmarks_content");
+                          }
+                          setSelectedTagId(isTagActive ? null : tag.id);
+                          setSelectedCategoryId(null);
+                        }}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full cursor-pointer transition-all border ${
+                          isTagActive
+                            ? "bg-blue-600/20 text-blue-500 border-blue-500/50"
+                            : "bg-gray-100 hover:bg-gray-200 dark:bg-gray-800/40 dark:hover:bg-gray-700/50 text-gray-500 dark:text-gray-400 border-transparent"
+                        }`}
+                        style={{ borderLeftColor: tag.color, borderLeftWidth: "3px" }}
+                      >
+                        {tag.name}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </nav>
 
 
           {/* RSS Subscriptions */}
-          <div className="p-4 flex-grow">
+          <div className="p-4 flex-grow overflow-y-auto">
             <div className="flex items-center justify-between px-3 mb-2">
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 RSS購読
               </span>
-              <button
-                onClick={() => setShowAddFeed(true)}
-                className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-                title="Add Feed"
-              >
-                <PlusCircle className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setNewCategoryScope("rss");
+                    setShowAddCategory(true);
+                  }}
+                  className="text-gray-550 dark:text-gray-450 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  title="カテゴリ追加"
+                >
+                  <Folder className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setShowAddFeed(true)}
+                  className="text-gray-550 dark:text-gray-455 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  title="Add Feed"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -613,63 +748,153 @@ export default function Dashboard() {
                 All RSS Articles
               </button>
 
-              {/* Dynamic categories or single subscriptions */}
-              {subscriptions.map((sub) => (
-                <div
-                  key={sub.id}
-                  onClick={() => {
-                    setActiveSection("rss");
-                    setSelectedFeedId(sub.id);
-                    setSelectedCategoryId(null);
-                  }}
-                  className={`group flex w-full items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors truncate cursor-pointer ${
-                    activeSection === "rss" && selectedFeedId === sub.id
-                      ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/20"
-                  }`}
-                >
-                  <span className="flex items-center gap-2 truncate">
-                    <img
-                      src={sub.favicon_url || "https://www.google.com/s2/favicons?domain=" + sub.url}
-                      className="w-3.5 h-3.5 rounded shrink-0"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "/favicon.ico";
+              {/* RSS Categories */}
+              {categories.filter(c => c.scope === "rss").map((cat) => {
+                const catFeeds = subscriptions.filter(s => s.category_id === cat.id);
+                const isCatActive = activeSection === "rss" && selectedCategoryId === cat.id;
+                return (
+                  <div key={cat.id} className="space-y-0.5">
+                    <div
+                      onClick={() => {
+                        setActiveSection("rss");
+                        setSelectedFeedId(null);
+                        setSelectedCategoryId(cat.id);
                       }}
-                      alt=""
-                    />
-                    <span className="truncate">{sub.display_name || sub.title || sub.url}</span>
-                  </span>
-                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingFeedId(sub.id);
-                        setEditFeedDisplayName(sub.display_name || sub.title || "");
-                        setEditFeedCategory(sub.category_id || "");
-                        setShowEditFeed(true);
-                      }}
-                      className="text-gray-500 hover:text-blue-400 p-0.5 transition-colors"
-                      title="編集"
+                      className={`group flex items-center justify-between px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                        isCatActive
+                          ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-105 dark:hover:bg-gray-800/20"
+                      }`}
                     >
-                      <Edit className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm("Unsubscribe?")) {
-                          api.unsubscribeFeed(sub.id).then(() => loadInitialData());
-                        }
-                      }}
-                      className="text-gray-500 hover:text-red-400 text-sm font-bold p-0.5 transition-colors"
-                      title="購読解除"
-                    >
-                      ×
-                    </button>
+                      <span className="flex items-center gap-2 truncate">
+                        <Folder className="w-3.5 h-3.5" style={{ color: cat.color }} />
+                        <span className="truncate">{cat.name}</span>
+                      </span>
+                    </div>
+                    {/* Feeds under this category */}
+                    <div className="pl-4 border-l border-gray-200 dark:border-gray-800/60 ml-4 space-y-0.5">
+                      {catFeeds.map((sub) => (
+                        <div
+                          key={sub.id}
+                          onClick={() => {
+                            setActiveSection("rss");
+                            setSelectedFeedId(sub.id);
+                            setSelectedCategoryId(null);
+                          }}
+                          className={`group flex w-full items-center justify-between px-2 py-1 text-[11px] font-medium rounded transition-colors truncate cursor-pointer ${
+                            activeSection === "rss" && selectedFeedId === sub.id
+                              ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
+                              : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/10"
+                          }`}
+                        >
+                          <span className="flex items-center gap-1.5 truncate">
+                            <img
+                              src={sub.favicon_url || "https://www.google.com/s2/favicons?domain=" + sub.url}
+                              className="w-3 h-3 rounded shrink-0"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/favicon.ico";
+                              }}
+                              alt=""
+                            />
+                            <span className="truncate">{sub.display_name || sub.title || sub.url}</span>
+                          </span>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingFeedId(sub.id);
+                                setEditFeedDisplayName(sub.display_name || sub.title || "");
+                                setEditFeedCategory(sub.category_id || "");
+                                setShowEditFeed(true);
+                              }}
+                              className="text-gray-500 hover:text-blue-400 p-0.5 transition-colors"
+                              title="編集"
+                            >
+                              <Edit className="w-2.5 h-2.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm("Unsubscribe?")) {
+                                  api.unsubscribeFeed(sub.id).then(() => loadInitialData());
+                                }
+                              }}
+                              className="text-gray-500 hover:text-red-400 text-[10px] font-bold p-0.5 transition-colors"
+                              title="購読解除"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+                );
+              })}
+
+              {/* Uncategorized Feeds */}
+              {subscriptions.filter(s => !s.category_id).length > 0 && (
+                <div className="pt-2 space-y-0.5">
+                  <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 px-3 uppercase tracking-wider">Uncategorized</span>
+                  {subscriptions.filter(s => !s.category_id).map((sub) => (
+                    <div
+                      key={sub.id}
+                      onClick={() => {
+                        setActiveSection("rss");
+                        setSelectedFeedId(sub.id);
+                        setSelectedCategoryId(null);
+                      }}
+                      className={`group flex w-full items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors truncate cursor-pointer ${
+                        activeSection === "rss" && selectedFeedId === sub.id
+                          ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-105 dark:hover:bg-gray-800/20"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 truncate">
+                        <img
+                          src={sub.favicon_url || "https://www.google.com/s2/favicons?domain=" + sub.url}
+                          className="w-3.5 h-3.5 rounded shrink-0"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = "/favicon.ico";
+                          }}
+                          alt=""
+                        />
+                        <span className="truncate">{sub.display_name || sub.title || sub.url}</span>
+                      </span>
+                      <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingFeedId(sub.id);
+                            setEditFeedDisplayName(sub.display_name || sub.title || "");
+                            setEditFeedCategory(sub.category_id || "");
+                            setShowEditFeed(true);
+                          }}
+                          className="text-gray-500 hover:text-blue-400 p-0.5 transition-colors"
+                          title="編集"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm("Unsubscribe?")) {
+                              api.unsubscribeFeed(sub.id).then(() => loadInitialData());
+                            }
+                          }}
+                          className="text-gray-500 hover:text-red-400 text-sm font-bold p-0.5 transition-colors"
+                          title="購読解除"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           </div>
+
         </div>
 
         {/* User logout section */}
@@ -944,11 +1169,20 @@ export default function Dashboard() {
           {(activeSection === "rss" || (activeSection === "favorites" && favSubTab === "articles")) && (
             <div className="space-y-6">
               <div className="flex flex-col">
-                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
                   {activeSection === "favorites"
                     ? "お気に入り記事"
                     : selectedFeedId
                     ? subscriptions.find((s) => s.id === selectedFeedId)?.display_name || "Feed Articles"
+                    : selectedCategoryId
+                    ? (
+                      <>
+                        Aggregated RSS Articles
+                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-blue-150/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 ml-2">
+                          カテゴリ: {categories.find(c => c.id === selectedCategoryId)?.name || ""}
+                        </span>
+                      </>
+                    )
                     : "Aggregated RSS Articles"}
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
@@ -1050,11 +1284,25 @@ export default function Dashboard() {
             (activeSection === "favorites" && favSubTab === "bookmarks")) && (
             <div className="space-y-6">
               <div className="flex flex-col">
-                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {activeSection === "bookmarks_content" && "コンテンツアーカイブ"}
-                  {activeSection === "bookmarks_resource" && "リソースディレクトリ"}
+                <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white flex flex-wrap items-center gap-2">
                   {activeSection === "pinned" && "ピン留め一覧"}
                   {activeSection === "favorites" && "お気に入りブックマーク"}
+                  {(activeSection === "bookmarks_content" || activeSection === "bookmarks_resource") && (
+                    <>
+                      {activeSection === "bookmarks_content" && "コンテンツアーカイブ"}
+                      {activeSection === "bookmarks_resource" && "リソースディレクトリ"}
+                      {selectedCategoryId && (
+                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-indigo-150/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 ml-2">
+                          カテゴリ: {categories.find(c => c.id === selectedCategoryId)?.name || ""}
+                        </span>
+                      )}
+                      {selectedTagId && (
+                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-blue-150/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 ml-2">
+                          タグ: {tags.find(t => t.id === selectedTagId)?.name || ""}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
                   {activeSection === "bookmarks_content" && "永久に保存された長文記事、アイデア、コラム"}
@@ -1264,6 +1512,158 @@ export default function Dashboard() {
                 }}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* FORM MODAL: Add Category */}
+      {showAddCategory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#090e18] shadow-2xl">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Category</h2>
+            <form onSubmit={handleAddCategory} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                  Category Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Technology, Design"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                  Scope
+                </label>
+                <div className="flex gap-4 mt-1">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="category-scope"
+                      value="bookmark"
+                      checked={newCategoryScope === "bookmark"}
+                      onChange={() => setNewCategoryScope("bookmark")}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    Bookmarks
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="category-scope"
+                      value="rss"
+                      checked={newCategoryScope === "rss"}
+                      onChange={() => setNewCategoryScope("rss")}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    RSS Feeds
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  Category Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="w-10 h-10 rounded border-0 cursor-pointer p-0 bg-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    placeholder="#6b7280"
+                    className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategory(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-all"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FORM MODAL: Add Tag */}
+      {showAddTag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md p-6 rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#090e18] shadow-2xl">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Create New Tag</h2>
+            <form onSubmit={handleAddTag} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">
+                  Tag Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. javascript, tutorial"
+                  value={newTagName}
+                  onChange={(e) => setNewTagName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                  Tag Color
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={newTagColor}
+                    onChange={(e) => setNewTagColor(e.target.value)}
+                    className="w-10 h-10 rounded border-0 cursor-pointer p-0 bg-transparent"
+                  />
+                  <input
+                    type="text"
+                    value={newTagColor}
+                    onChange={(e) => setNewTagColor(e.target.value)}
+                    placeholder="#6b7280"
+                    className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddTag(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-all"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
