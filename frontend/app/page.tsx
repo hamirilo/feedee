@@ -41,9 +41,10 @@ import {
   Check,
   AlertTriangle,
   Info,
+  Archive,
 } from "lucide-react";
 
-type Section = "inbox" | "someday" | "bookmarks_content" | "bookmarks_resource" | "rss" | "pinned" | "favorites";
+type Section = "inbox" | "someday" | "archive" | "bookmarks_content" | "bookmarks_resource" | "rss" | "pinned" | "favorites";
 
 // ===== Toast System =====
 type ToastType = "success" | "error" | "info";
@@ -169,7 +170,9 @@ export default function Dashboard() {
   const [articles, setArticles] = useState<ArticleData[]>([]);
   const [inboxItems, setInboxItems] = useState<InboxItemData[]>([]);
   const [somedayItems, setSomedayItems] = useState<InboxItemData[]>([]);
+  const [archivedItems, setArchivedItems] = useState<InboxItemData[]>([]);
   const [bookmarks, setBookmarks] = useState<BookmarkData[]>([]);
+  const [archiveSearchQuery, setArchiveSearchQuery] = useState("");
 
   // Modals & Form states
   const [selectedArticle, setSelectedArticle] = useState<ArticleData | null>(null);
@@ -186,6 +189,8 @@ export default function Dashboard() {
   const [newBookmarkCategory, setNewBookmarkCategory] = useState("");
   const [newBookmarkNote, setNewBookmarkNote] = useState("");
   const [newBookmarkTags, setNewBookmarkTags] = useState<string[]>([]);
+  const [promoteSourceId, setPromoteSourceId] = useState<string | null>(null);
+  const [promoteSourceType, setPromoteSourceType] = useState<"inbox" | "someday" | null>(null);
   
   // Edit Bookmark Form states
   const [showEditBookmark, setShowEditBookmark] = useState(false);
@@ -259,18 +264,20 @@ export default function Dashboard() {
 
   const loadInitialData = async () => {
     try {
-      const [catsData, tagsData, subsData, inboxData, somedayData] = await Promise.all([
+      const [catsData, tagsData, subsData, inboxData, somedayData, archivedData] = await Promise.all([
         api.getCategories(),
         api.getTags(),
         api.getSubscriptions(),
         api.getInbox(),
         api.getSomeday(),
+        api.getArchivedItems(),
       ]);
       setCategories(catsData);
       setTags(tagsData);
       setSubscriptions(subsData);
       setInboxItems(inboxData);
       setSomedayItems(somedayData);
+      setArchivedItems(archivedData);
 
       // Load active section content
       refreshSectionContent(activeSection);
@@ -287,6 +294,9 @@ export default function Dashboard() {
       } else if (section === "someday") {
         const data = await api.getSomeday();
         setSomedayItems(data);
+      } else if (section === "archive") {
+        const data = await api.getArchivedItems(archiveSearchQuery);
+        setArchivedItems(data);
       } else if (section === "bookmarks_content") {
         const data = await api.getBookmarks({
           bookmarkType: "content",
@@ -332,7 +342,7 @@ export default function Dashboard() {
     if (localStorage.getItem(TOKEN_KEY)) {
       refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
     }
-  }, [activeSection, selectedFeedId, selectedCategoryId, selectedTagId, rssFilterRead, rssFilterFav]);
+  }, [activeSection, selectedFeedId, selectedCategoryId, selectedTagId, rssFilterRead, rssFilterFav, archiveSearchQuery]);
 
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY);
@@ -396,14 +406,25 @@ export default function Dashboard() {
         note: newBookmarkNote || null,
         tagIds: newBookmarkTags,
       });
+
+      if (promoteSourceId) {
+        if (promoteSourceType === "inbox") {
+          await api.archiveInboxItem(promoteSourceId);
+        } else if (promoteSourceType === "someday") {
+          await api.deleteSomedayItem(promoteSourceId);
+        }
+      }
+
       setShowAddBookmark(false);
       setNewBookmarkUrl("");
       setNewBookmarkTitle("");
       setNewBookmarkCategory("");
       setNewBookmarkNote("");
       setNewBookmarkTags([]);
-      refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
-      showToast("success", "ブックマークを追加しました");
+      setPromoteSourceId(null);
+      setPromoteSourceType(null);
+      loadInitialData();
+      showToast("success", promoteSourceId ? "ブックマークに昇格しました" : "ブックマークを追加しました");
     } catch (err: any) {
       showToast("error", err.message || "Failed to create bookmark");
     }
@@ -453,25 +474,33 @@ export default function Dashboard() {
     }
   };
 
+  const openPromoteModal = (item: InboxItemData, type: "inbox" | "someday") => {
+    setNewBookmarkUrl(item.url || "");
+    setNewBookmarkTitle(item.title || "");
+    setNewBookmarkType("content"); // default
+    setNewBookmarkCategory("");
+    setNewBookmarkNote(item.description || "");
+    setNewBookmarkTags([]);
+    setPromoteSourceId(item.id);
+    setPromoteSourceType(type);
+    setShowAddBookmark(true);
+  };
+
   // Read Later Pipeline Operations
   const handleInboxAction = async (itemId: string, action: "read" | "snooze" | "bookmark") => {
     try {
       if (action === "read") {
-        await api.deleteInboxItem(itemId);
+        await api.archiveInboxItem(itemId);
+        showToast("success", "既読にしました（アーカイブに移動）");
       } else if (action === "snooze") {
         await api.snoozeItem(itemId);
+        showToast("success", "Somedayに移動しました");
       } else if (action === "bookmark") {
         const item = inboxItems.find((i) => i.id === itemId);
         if (item) {
-          await api.createBookmark({
-            url: item.url || "",
-            title: item.title,
-            description: item.description,
-            thumbnailUrl: item.thumbnail_url,
-            bookmarkType: "content",
-          });
-          await api.deleteInboxItem(itemId);
+          openPromoteModal(item, "inbox");
         }
+        return; // Skip loadInitialData since we just open the modal
       }
       loadInitialData();
     } catch (err) {
@@ -483,8 +512,25 @@ export default function Dashboard() {
     try {
       if (action === "delete") {
         await api.deleteSomedayItem(itemId);
+        showToast("info", "削除しました");
       } else if (action === "unsnooze") {
         await api.unsnoozeItem(itemId);
+        showToast("success", "受信トレイに戻しました");
+      }
+      loadInitialData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleArchiveAction = async (itemId: string, action: "unarchive" | "delete") => {
+    try {
+      if (action === "unarchive") {
+        await api.unarchiveItem(itemId);
+        showToast("success", "受信トレイに戻しました");
+      } else if (action === "delete") {
+        await api.deleteInboxItem(itemId);
+        showToast("info", "完全に削除しました");
       }
       loadInitialData();
     } catch (err) {
@@ -666,6 +712,30 @@ export default function Dashboard() {
               {somedayItems.length > 0 && (
                 <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-600/20 text-indigo-500 dark:text-indigo-400">
                   {somedayItems.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                setActiveSection("archive");
+                setSelectedFeedId(null);
+                setSelectedCategoryId(null);
+                setSelectedTagId(null);
+              }}
+              className={`flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                activeSection === "archive"
+                  ? "bg-teal-600/10 text-teal-500 dark:text-teal-400 border border-teal-500/20"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+              }`}
+            >
+              <span className="flex items-center gap-2.5">
+                <Archive className="h-4 w-4" />
+                アーカイブ
+              </span>
+              {archivedItems.length > 0 && (
+                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-teal-600/20 text-teal-500 dark:text-teal-400">
+                  {archivedItems.length}
                 </span>
               )}
             </button>
@@ -1260,11 +1330,17 @@ export default function Dashboard() {
                               <ExternalLink className="h-3 w-3" />
                             </a>
                           )}
-                          <button
+                           <button
                             onClick={() => handleSomedayAction(item.id, "unsnooze")}
                             className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 transition-colors"
                           >
                             Unsnooze (Move to Inbox)
+                          </button>
+                          <button
+                            onClick={() => openPromoteModal(item, "someday")}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600/10 hover:bg-amber-600/20 text-amber-600 dark:text-amber-400 transition-colors"
+                          >
+                            Promote to Bookmark
                           </button>
                           <button
                             onClick={() => handleSomedayAction(item.id, "delete")}
@@ -1272,6 +1348,114 @@ export default function Dashboard() {
                             title="Delete"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SECTION: ARCHIVE */}
+          {activeSection === "archive" && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">アーカイブ</h1>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                    既読にした記事の履歴（タイトルやURLで検索可能）
+                  </p>
+                </div>
+                <div className="relative w-full md:w-72">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-400" />
+                  </span>
+                  <input
+                    type="text"
+                    value={archiveSearchQuery}
+                    onChange={(e) => setArchiveSearchQuery(e.target.value)}
+                    placeholder="アーカイブ内を検索..."
+                    className="w-full pl-9 pr-4 py-2 text-sm bg-white dark:bg-gray-900/40 border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                  />
+                  {archiveSearchQuery && (
+                    <button
+                      onClick={() => setArchiveSearchQuery("")}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {archivedItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-16 border border-dashed border-gray-300 dark:border-gray-800 rounded-2xl bg-gray-50 dark:bg-gray-900/10">
+                  <Archive className="h-10 w-10 text-gray-400 dark:text-gray-600 mb-4" />
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    {archiveSearchQuery ? "条件にマッチするアイテムが見つかりません。" : "アーカイブされたアイテムはありません。"}
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {archivedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="group flex flex-col md:flex-row gap-5 p-5 rounded-xl border border-gray-200 bg-white dark:border-gray-800/40 dark:bg-gray-900/20 hover:border-gray-300 dark:hover:border-gray-700/50 transition-all shadow-md"
+                    >
+                      {item.thumbnail_url && (
+                        <div className="w-full md:w-32 h-20 shrink-0 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-800">
+                          <img
+                            src={item.thumbnail_url}
+                            className="w-full h-full object-cover"
+                            alt=""
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col justify-between grow">
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                            {item.title || "Untitled Link"}
+                          </h3>
+                          <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 font-mono truncate">{item.url}</p>
+                          {item.description && (
+                            <p className="text-gray-600 dark:text-gray-400 text-sm mt-2 line-clamp-2">{item.description}</p>
+                          )}
+                          {item.archived_at && (
+                            <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
+                              既読日: {new Date(item.archived_at).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 mt-4 shrink-0">
+                          {item.url && (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800/80 dark:hover:bg-gray-700 dark:text-white transition-colors"
+                            >
+                              Open Link
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => handleArchiveAction(item.id, "unarchive")}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-600/10 hover:bg-teal-600/20 text-teal-600 dark:text-teal-400 transition-colors"
+                          >
+                            受信トレイに戻す
+                          </button>
+                          <button
+                            onClick={() => {
+                              showConfirm("このアイテムをアーカイブから完全に削除しますか？", () => {
+                                handleArchiveAction(item.id, "delete");
+                              });
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600/10 hover:bg-red-600/20 text-red-600 dark:text-red-400 transition-colors ml-auto"
+                          >
+                            完全に削除
                           </button>
                         </div>
                       </div>
@@ -1320,8 +1504,8 @@ export default function Dashboard() {
                       onClick={() => openArticleReader(article)}
                       className={`group flex flex-col justify-between p-5 rounded-xl border transition-all shadow-lg hover:shadow-xl cursor-pointer ${
                         article.is_read
-                          ? "border-gray-200 bg-gray-100/60 dark:border-gray-800/30 dark:bg-gray-900/40 opacity-60"
-                          : "border-gray-200 bg-white hover:border-gray-350 dark:border-gray-800 dark:bg-gray-900/30 dark:hover:border-gray-700"
+                          ? "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/30 hover:border-gray-300 dark:hover:border-gray-700"
+                          : "border-l-4 border-l-blue-500 border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900/30 dark:border-l-blue-500 hover:border-gray-300 dark:hover:border-gray-700"
                       }`}
                     >
                       <div>
@@ -1371,14 +1555,14 @@ export default function Dashboard() {
                       key={article.id}
                       onClick={() => openArticleReader(article)}
                       className={`flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/20 transition-all ${
-                        article.is_read ? "opacity-60" : "font-semibold"
+                        article.is_read ? "" : "border-l-4 border-l-blue-500"
                       }`}
                     >
                       <div className="flex items-center gap-4 min-w-0 pr-4">
                         <span className="text-xs text-gray-500 truncate w-32 shrink-0">
                           {article.feed_title || "RSS Feed"}
                         </span>
-                        <span className="text-sm text-gray-800 dark:text-white truncate max-w-lg">{article.title}</span>
+                        <span className={`text-sm truncate max-w-lg ${article.is_read ? "text-gray-500 dark:text-gray-400" : "text-gray-800 dark:text-white font-semibold"}`}>{article.title}</span>
                       </div>
                       <div className="flex items-center gap-4 shrink-0 text-xs text-gray-500">
                         <span>
@@ -1852,17 +2036,24 @@ export default function Dashboard() {
       {showAddBookmark && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md p-6 rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-[#090e18] shadow-2xl">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Add New Bookmark</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {promoteSourceId ? "ブックマークに昇格" : "Add New Bookmark"}
+            </h2>
             <form onSubmit={handleAddBookmark} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">URL</label>
                 <input
                   type="url"
                   required
+                  disabled={!!promoteSourceId}
                   placeholder="https://example.com/article"
                   value={newBookmarkUrl}
                   onChange={(e) => setNewBookmarkUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-950/40 dark:text-white"
+                  className={`w-full px-3 py-2 rounded-lg border border-gray-300 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:text-white ${
+                    promoteSourceId
+                      ? "bg-gray-100 dark:bg-gray-900/60 cursor-not-allowed opacity-75"
+                      : "bg-gray-50 dark:bg-gray-950/40"
+                  }`}
                 />
               </div>
 
@@ -2000,7 +2191,16 @@ export default function Dashboard() {
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddBookmark(false)}
+                  onClick={() => {
+                    setShowAddBookmark(false);
+                    setNewBookmarkUrl("");
+                    setNewBookmarkTitle("");
+                    setNewBookmarkCategory("");
+                    setNewBookmarkNote("");
+                    setNewBookmarkTags([]);
+                    setPromoteSourceId(null);
+                    setPromoteSourceType(null);
+                  }}
                   className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
                 >
                   Cancel
@@ -2009,7 +2209,7 @@ export default function Dashboard() {
                   type="submit"
                   className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-500/20 transition-all"
                 >
-                  Create
+                  {promoteSourceId ? "昇格する" : "Create"}
                 </button>
               </div>
             </form>

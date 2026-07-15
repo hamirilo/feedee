@@ -1,17 +1,17 @@
+import uuid
 from datetime import datetime
 from typing import Annotated
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, delete
+from pydantic import BaseModel
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.article import Article, ArticleUserState
-from app.models.feed import Feed, Subscription
 from app.models.common import Category
+from app.models.feed import Feed, Subscription
 from app.models.user import User
 from app.utils.auth import get_current_user
 

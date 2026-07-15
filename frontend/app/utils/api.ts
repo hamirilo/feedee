@@ -84,6 +84,8 @@ export interface InboxItemData {
   description: string | null;
   thumbnail_url: string | null;
   order: number;
+  is_archived: boolean;
+  archived_at: string | null;
 }
 
 export interface BookmarkData {
@@ -173,6 +175,10 @@ export const api = {
     }),
   deleteInboxItem: (id: string): Promise<void> => fetchAPI(`/app/inbox/${id}`, { method: "DELETE" }),
   snoozeItem: (id: string): Promise<InboxItemData> => fetchAPI(`/app/inbox/${id}/snooze`, { method: "POST" }),
+  archiveInboxItem: (id: string): Promise<void> => fetchAPI(`/app/inbox/${id}/archive`, { method: "POST" }),
+  unarchiveItem: (id: string): Promise<void> => fetchAPI(`/app/inbox/${id}/unarchive`, { method: "POST" }),
+  getArchivedItems: (q?: string): Promise<InboxItemData[]> =>
+    fetchAPI(`/app/inbox/archived${q ? `?q=${encodeURIComponent(q)}` : ""}`),
 
   getSomeday: (): Promise<InboxItemData[]> => fetchAPI("/app/someday"),
   deleteSomedayItem: (id: string): Promise<void> => fetchAPI(`/app/someday/${id}`, { method: "DELETE" }),

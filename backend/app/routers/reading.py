@@ -1,9 +1,10 @@
 import uuid
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -31,6 +32,8 @@ class ReadingItemResponse(BaseModel):
     description: str | None = None
     thumbnail_url: str | None = None
     order: int
+    is_archived: bool
+    archived_at: datetime | None = None
 
     class Config:
         from_attributes = True
@@ -56,7 +59,7 @@ async def get_inbox_items(
 ):
     query = (
         select(ReadingItem)
-        .where(ReadingItem.user_id == current_user.id)
+        .where(ReadingItem.user_id == current_user.id, ReadingItem.is_archived.is_(False))
         .order_by(ReadingItem.order.asc(), ReadingItem.created_at.desc())
     )
     result = await db.execute(query)
@@ -100,6 +103,11 @@ async def add_to_inbox(
     dup_result = await db.execute(dup_query)
     existing_item = dup_result.scalar_one_or_none()
     if existing_item:
+        if existing_item.is_archived:
+            existing_item.is_archived = False
+            existing_item.archived_at = None
+            await db.commit()
+            await db.refresh(existing_item)
         return existing_item
 
     item = ReadingItem(
@@ -250,3 +258,79 @@ async def unsnooze_to_inbox(
     await db.delete(item)
     await db.commit()
     return inbox_item
+
+
+@router.get("/inbox/archived", response_model=list[ReadingItemResponse])
+async def get_archived_items(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    q: str | None = None,
+):
+    query = select(ReadingItem).where(
+        ReadingItem.user_id == current_user.id, ReadingItem.is_archived.is_(True)
+    )
+    if q:
+        query = query.where(
+            or_(
+                ReadingItem.title.ilike(f"%{q}%"),
+                ReadingItem.url.ilike(f"%{q}%"),
+            )
+        )
+    query = query.order_by(ReadingItem.archived_at.desc(), ReadingItem.created_at.desc())
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+@router.post("/inbox/{item_id}/archive", response_model=ReadingItemResponse)
+async def archive_inbox_item(
+    item_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        item_uuid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid item UUID")
+
+    result = await db.execute(
+        select(ReadingItem).where(
+            ReadingItem.id == item_uuid, ReadingItem.user_id == current_user.id
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    item.is_archived = True
+    item.archived_at = datetime.now()
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+@router.post("/inbox/{item_id}/unarchive", response_model=ReadingItemResponse)
+async def unarchive_inbox_item(
+    item_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    try:
+        item_uuid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid item UUID")
+
+    result = await db.execute(
+        select(ReadingItem).where(
+            ReadingItem.id == item_uuid, ReadingItem.user_id == current_user.id
+        )
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    item.is_archived = False
+    item.archived_at = None
+    await db.commit()
+    await db.refresh(item)
+    return item
+

@@ -16,6 +16,18 @@ logger = logging.getLogger("uvicorn.error")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Run alembic migrations programmatically on startup
+    try:
+        from alembic import command
+        from alembic.config import Config
+        logger.info("Running alembic migrations programmatically...")
+        alembic_cfg = Config("alembic.ini")
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+        command.upgrade(alembic_cfg, "head")
+        logger.info("Migrations completed successfully.")
+    except Exception as e:
+        logger.error(f"Error running programmatic migrations: {e}")
+
     # Startup: Check and create admin user automatically in the database
     async with AsyncSessionLocal() as session:
         try:

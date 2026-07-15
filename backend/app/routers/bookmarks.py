@@ -1,16 +1,16 @@
+import uuid
 from datetime import datetime
 from typing import Annotated
-import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, delete
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.bookmark import Bookmark, BookmarkType, BookmarkUserState
-from app.models.common import Category, Tag, bookmark_tag_association
+from app.models.common import Category, Tag
 from app.models.user import User
 from app.utils.auth import get_current_user
 

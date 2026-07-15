@@ -1,11 +1,13 @@
 import asyncio
-import sys
 import getpass
+import sys
+
 from sqlalchemy import select
 
 from app.database import AsyncSessionLocal
 from app.models.user import User
 from app.utils.security import get_password_hash
+
 
 async def main():
     print("=== Create Superuser ===")

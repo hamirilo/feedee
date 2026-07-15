@@ -1,13 +1,14 @@
+import logging
 import os
 import sqlite3
-import logging
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.user import User
+from app.models.bookmark import Bookmark, BookmarkType, BookmarkUserState
 from app.models.common import Category, CategoryScope
 from app.models.feed import Feed, Subscription
-from app.models.bookmark import Bookmark, BookmarkUserState, BookmarkType
+from app.models.user import User
 from app.utils.security import get_password_hash
 
 logger = logging.getLogger("uvicorn.error")

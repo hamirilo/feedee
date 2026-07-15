@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -35,6 +36,8 @@ class ReadingItem(Base, TimestampMixin):
     thumbnail_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
     order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # relationships
     user: Mapped["User"] = relationship(back_populates="reading_items")  # noqa: F821
