@@ -24,8 +24,8 @@ class ReadingItemCreate(BaseModel):
 
 
 class ReadingItemResponse(BaseModel):
-    id: str
-    article_id: str | None = None
+    id: uuid.UUID
+    article_id: uuid.UUID | None = None
     url: str | None = None
     title: str | None = None
     description: str | None = None
@@ -37,8 +37,8 @@ class ReadingItemResponse(BaseModel):
 
 
 class SomedayItemResponse(BaseModel):
-    id: str
-    article_id: str | None = None
+    id: uuid.UUID
+    article_id: uuid.UUID | None = None
     url: str | None = None
     title: str | None = None
     description: str | None = None
@@ -98,8 +98,9 @@ async def add_to_inbox(
         dup_query = dup_query.where(ReadingItem.url == url)
 
     dup_result = await db.execute(dup_query)
-    if dup_result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Item already exists in Inbox")
+    existing_item = dup_result.scalar_one_or_none()
+    if existing_item:
+        return existing_item
 
     item = ReadingItem(
         user_id=current_user.id,

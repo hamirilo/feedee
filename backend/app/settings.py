@@ -25,7 +25,12 @@ class Settings(BaseSettings):
     worker_api_token: str = ""
 
     # CORS
-    allowed_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    allowed_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3010",
+        "http://127.0.0.1:3010",
+    ]
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

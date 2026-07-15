@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   api,
@@ -38,9 +38,100 @@ import {
   Edit,
   X,
   Rss,
+  Check,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 
 type Section = "inbox" | "someday" | "bookmarks_content" | "bookmarks_resource" | "rss" | "pinned" | "favorites";
+
+// ===== Toast System =====
+type ToastType = "success" | "error" | "info";
+interface Toast {
+  id: number;
+  type: ToastType;
+  message: string;
+}
+
+function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: number) => void }) {
+  return (
+    <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none">
+      {toasts.map((t) => {
+        const base = "flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl text-sm font-medium backdrop-blur-xl border pointer-events-auto cursor-pointer min-w-[260px] max-w-[360px] transition-all duration-300 animate-in slide-in-from-bottom-4";
+        const styles: Record<ToastType, string> = {
+          success: `${base} bg-emerald-950/90 border-emerald-500/30 text-emerald-100`,
+          error:   `${base} bg-red-950/90 border-red-500/30 text-red-100`,
+          info:    `${base} bg-gray-900/90 border-gray-600/30 text-gray-100`,
+        };
+        const icons: Record<ToastType, JSX.Element> = {
+          success: <Check className="w-4 h-4 text-emerald-400 shrink-0" />,
+          error:   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />,
+          info:    <Info className="w-4 h-4 text-blue-400 shrink-0" />,
+        };
+        return (
+          <div key={t.id} className={styles[t.type]} onClick={() => onDismiss(t.id)}>
+            {icons[t.type]}
+            <span className="flex-1 leading-snug">{t.message}</span>
+            <X className="w-3.5 h-3.5 opacity-50 shrink-0" />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===== Confirm Dialog =====
+interface ConfirmDialogProps {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+function ConfirmDialog({ message, onConfirm, onCancel }: ConfirmDialogProps) {
+  return (
+    <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
+      <div className="bg-gray-900 border border-gray-700/60 rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-3 mb-5">
+          <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-gray-200 leading-relaxed">{message}</p>
+        </div>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-700 hover:border-gray-500 rounded-lg transition-colors"
+          >
+            キャンセル
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-semibold bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors"
+          >
+            実行する
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeedIcon({ url, faviconUrl, className = "w-3.5 h-3.5" }: { url: string; faviconUrl: string | null; className?: string }) {
+  const [isError, setIsError] = useState(false);
+
+  if (isError) {
+    return <Rss className={`${className} text-orange-500 dark:text-orange-400 shrink-0`} />;
+  }
+
+  const domain = (() => { try { return new URL(url).hostname; } catch { return url; } })();
+  const src = faviconUrl || "https://www.google.com/s2/favicons?domain=" + domain;
+
+  return (
+    <img
+      src={src}
+      className={`${className} rounded shrink-0`}
+      onError={() => setIsError(true)}
+      alt=""
+    />
+  );
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -53,6 +144,23 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [searchQuery, setSearchQuery] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
+
+  // Toast
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const showToast = useCallback((type: ToastType, message: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
+  }, []);
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Confirm Dialog
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  const showConfirm = useCallback((message: string, onConfirm: () => void) => {
+    setConfirmDialog({ message, onConfirm });
+  }, []);
 
   // Data state
   const [categories, setCategories] = useState<CategoryData[]>([]);
@@ -111,6 +219,9 @@ export default function Dashboard() {
   const [showAddTag, setShowAddTag] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [newTagColor, setNewTagColor] = useState("#6b7280");
+
+  const isArticleInInbox = selectedArticle ? inboxItems.some(item => item.article_id === selectedArticle.id) : false;
+  const isArticleInSomeday = selectedArticle ? somedayItems.some(item => item.article_id === selectedArticle.id) : false;
 
   // Load basic items on mount
   useEffect(() => {
@@ -238,7 +349,7 @@ export default function Dashboard() {
       setNewCategoryColor("#6b7280");
       loadInitialData();
     } catch (err: any) {
-      alert(err.message || "Failed to create category");
+      showToast("error", err.message || "Failed to create category");
     }
   };
 
@@ -252,7 +363,7 @@ export default function Dashboard() {
       setNewTagColor("#6b7280");
       loadInitialData();
     } catch (err: any) {
-      alert(err.message || "Failed to create tag");
+      showToast("error", err.message || "Failed to create tag");
     }
   };
 
@@ -267,8 +378,9 @@ export default function Dashboard() {
       setNewFeedCategory("");
       const subsData = await api.getSubscriptions();
       setSubscriptions(subsData);
+      showToast("success", "フィードを登録しました");
     } catch (err: any) {
-      alert(err.message || "Failed to subscribe to feed");
+      showToast("error", err.message || "Failed to subscribe to feed");
     }
   };
 
@@ -291,8 +403,9 @@ export default function Dashboard() {
       setNewBookmarkNote("");
       setNewBookmarkTags([]);
       refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
+      showToast("success", "ブックマークを追加しました");
     } catch (err: any) {
-      alert(err.message || "Failed to create bookmark");
+      showToast("error", err.message || "Failed to create bookmark");
     }
   };
 
@@ -314,8 +427,9 @@ export default function Dashboard() {
       setEditBookmarkNote("");
       setEditBookmarkTags([]);
       refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
+      showToast("success", "ブックマークを更新しました");
     } catch (err: any) {
-      alert(err.message || "Failed to update bookmark");
+      showToast("error", err.message || "Failed to update bookmark");
     }
   };
 
@@ -333,8 +447,9 @@ export default function Dashboard() {
       setEditFeedDisplayName("");
       setEditFeedCategory("");
       loadInitialData(); // Reload both feeds list and feed articles
+      showToast("success", "フィードを更新しました");
     } catch (err: any) {
-      alert(err.message || "Failed to update feed");
+      showToast("error", err.message || "Failed to update feed");
     }
   };
 
@@ -417,10 +532,10 @@ export default function Dashboard() {
   const handleSendArticleToInbox = async (article: ArticleData) => {
     try {
       await api.addToInbox({ articleId: article.id });
-      alert("Sent to Inbox!");
+      showToast("success", "受信トレイに追加しました");
       loadInitialData();
     } catch (err: any) {
-      alert(err.message || "Failed to add to Inbox");
+      showToast("error", err.message || "Failed to add to Inbox");
     }
   };
 
@@ -452,14 +567,17 @@ export default function Dashboard() {
   };
 
   const handleDeleteBookmark = async (id: string) => {
-    if (confirm("Are you sure you want to delete this bookmark?")) {
+    showConfirm("このブックマークを削除しますか？", async () => {
+      setConfirmDialog(null);
       try {
         await api.deleteBookmark(id);
         refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
+        showToast("success", "ブックマークを削除しました");
       } catch (err) {
         console.error(err);
+        showToast("error", "削除に失敗しました");
       }
-    }
+    });
   };
 
   // Filter lists based on Search Query
@@ -478,13 +596,23 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-[#070b14] text-gray-700 dark:text-gray-200 overflow-hidden font-sans transition-colors duration-200">
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <ConfirmDialog
+          message={confirmDialog.message}
+          onConfirm={confirmDialog.onConfirm}
+          onCancel={() => setConfirmDialog(null)}
+        />
+      )}
       {/* 1. LEFT SIDEBAR */}
       <aside className="w-64 border-r border-gray-200 dark:border-gray-800/40 bg-white dark:bg-gray-900/20 backdrop-blur-xl flex flex-col justify-between shrink-0 transition-colors duration-200">
         <div className="flex flex-col overflow-y-auto grow">
           {/* Logo */}
           <div className="flex items-center h-16 px-6 gap-3 border-b border-gray-200 dark:border-gray-800/40 shrink-0 transition-colors duration-200">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-md shadow-blue-500/10">
-              <BookOpen className="h-4.5 w-4.5 text-white" />
+              <BookOpen className="h-[18px] w-[18px] text-white" />
             </div>
             <span className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-500 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
               Feedee v2
@@ -528,7 +656,7 @@ export default function Dashboard() {
               className={`flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeSection === "someday"
                   ? "bg-indigo-600/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
             >
               <span className="flex items-center gap-2.5">
@@ -552,7 +680,7 @@ export default function Dashboard() {
               className={`flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeSection === "pinned"
                   ? "bg-amber-600/10 text-amber-500 dark:text-amber-400 border border-amber-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
             >
               <span className="flex items-center gap-2.5">
@@ -571,7 +699,7 @@ export default function Dashboard() {
               className={`flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeSection === "favorites"
                   ? "bg-rose-600/10 text-rose-500 dark:text-rose-400 border border-rose-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
             >
               <span className="flex items-center gap-2.5">
@@ -593,14 +721,14 @@ export default function Dashboard() {
                     setNewCategoryScope("bookmark");
                     setShowAddCategory(true);
                   }}
-                  className="text-gray-550 dark:text-gray-450 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                   title="カテゴリ追加"
                 >
                   <Folder className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => setShowAddTag(true)}
-                  className="text-gray-550 dark:text-gray-450 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                   title="タグ追加"
                 >
                   <Tag className="h-3.5 w-3.5" />
@@ -618,7 +746,7 @@ export default function Dashboard() {
               className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeSection === "bookmarks_content" && selectedCategoryId === null && selectedTagId === null
                   ? "bg-indigo-600/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
             >
               <Bookmark className="h-4 w-4" />
@@ -634,7 +762,7 @@ export default function Dashboard() {
               className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                 activeSection === "bookmarks_resource" && selectedCategoryId === null && selectedTagId === null
                   ? "bg-emerald-600/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+                  : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
               }`}
             >
               <ExternalLink className="h-4 w-4" />
@@ -644,7 +772,7 @@ export default function Dashboard() {
             {/* Bookmark Categories */}
             {categories.filter(c => c.scope === "bookmark").length > 0 && (
               <div className="pt-2">
-                <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-550 px-3 uppercase tracking-wider mb-1">Categories</span>
+                <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 px-3 uppercase tracking-wider mb-1">Categories</span>
                 {categories.filter(c => c.scope === "bookmark").map((cat) => {
                   const isCatActive = selectedCategoryId === cat.id;
                   return (
@@ -660,7 +788,7 @@ export default function Dashboard() {
                       className={`group flex w-full items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors truncate cursor-pointer ${
                         isCatActive
                           ? "bg-indigo-600/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/10"
-                          : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-105 dark:hover:bg-gray-800/20"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/20"
                       }`}
                     >
                       <Folder className="w-3.5 h-3.5 shrink-0" style={{ color: cat.color }} />
@@ -674,7 +802,7 @@ export default function Dashboard() {
             {/* Tags */}
             {tags.length > 0 && (
               <div className="pt-2">
-                <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-550 px-3 uppercase tracking-wider mb-1">Tags</span>
+                <span className="block text-[10px] font-semibold text-gray-400 dark:text-gray-500 px-3 uppercase tracking-wider mb-1">Tags</span>
                 <div className="flex flex-wrap gap-1.5 px-3 py-1">
                   {tags.map((tag) => {
                     const isTagActive = selectedTagId === tag.id;
@@ -717,14 +845,14 @@ export default function Dashboard() {
                     setNewCategoryScope("rss");
                     setShowAddCategory(true);
                   }}
-                  className="text-gray-550 dark:text-gray-450 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                   title="カテゴリ追加"
                 >
                   <Folder className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => setShowAddFeed(true)}
-                  className="text-gray-550 dark:text-gray-455 hover:text-gray-900 dark:hover:text-white transition-colors"
+                  className="text-gray-500 dark:text-gray-455 hover:text-gray-900 dark:hover:text-white transition-colors"
                   title="Add Feed"
                 >
                   <PlusCircle className="h-4 w-4" />
@@ -742,7 +870,7 @@ export default function Dashboard() {
                 className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                   activeSection === "rss" && selectedFeedId === null && selectedCategoryId === null
                     ? "bg-blue-600/10 text-blue-500 dark:text-blue-400 border border-blue-500/20"
-                    : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
+                    : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30 border border-transparent"
                 }`}
               >
                 <List className="h-4 w-4" />
@@ -764,7 +892,7 @@ export default function Dashboard() {
                       className={`group flex items-center justify-between px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                         isCatActive
                           ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
-                          : "text-gray-600 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-105 dark:hover:bg-gray-800/20"
+                          : "text-gray-600 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/20"
                       }`}
                     >
                       <span className="flex items-center gap-2 truncate">
@@ -785,11 +913,11 @@ export default function Dashboard() {
                           className={`group flex w-full items-center justify-between px-2 py-1 text-[11px] font-medium rounded transition-colors truncate cursor-pointer ${
                             activeSection === "rss" && selectedFeedId === sub.id
                               ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
-                              : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/10"
+                              : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/10"
                           }`}
                         >
                           <span className="flex items-center gap-1.5 truncate">
-                            <Rss className="w-3 h-3 text-orange-500 dark:text-orange-400 shrink-0" />
+                            <FeedIcon url={sub.url} faviconUrl={sub.favicon_url} className="w-3 h-3" />
                             <span className="truncate">{sub.display_name || sub.title || sub.url}</span>
                           </span>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -809,9 +937,10 @@ export default function Dashboard() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (confirm("Unsubscribe?")) {
-                                  api.unsubscribeFeed(sub.id).then(() => loadInitialData());
-                                }
+                                showConfirm("このフィードの購読を解除しますか？", () => {
+                                  setConfirmDialog(null);
+                                  api.unsubscribeFeed(sub.id).then(() => { loadInitialData(); showToast("info", "フィードの購読を解除しました"); });
+                                });
                               }}
                               className="text-gray-500 hover:text-red-400 text-[10px] font-bold p-0.5 transition-colors"
                               title="購読解除"
@@ -841,11 +970,11 @@ export default function Dashboard() {
                       className={`group flex w-full items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors truncate cursor-pointer ${
                         activeSection === "rss" && selectedFeedId === sub.id
                           ? "bg-blue-600/10 text-blue-500 dark:text-blue-400"
-                          : "text-gray-500 dark:text-gray-400 hover:text-gray-955 dark:hover:text-white hover:bg-gray-105 dark:hover:bg-gray-800/20"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/20"
                       }`}
                     >
                       <span className="flex items-center gap-2 truncate">
-                        <Rss className="w-3.5 h-3.5 text-orange-500 dark:text-orange-400 shrink-0" />
+                        <FeedIcon url={sub.url} faviconUrl={sub.favicon_url} className="w-3.5 h-3.5" />
                         <span className="truncate">{sub.display_name || sub.title || sub.url}</span>
                       </span>
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
@@ -865,9 +994,10 @@ export default function Dashboard() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (confirm("Unsubscribe?")) {
-                              api.unsubscribeFeed(sub.id).then(() => loadInitialData());
-                            }
+                            showConfirm("このフィードの購読を解除しますか？", () => {
+                              setConfirmDialog(null);
+                              api.unsubscribeFeed(sub.id).then(() => { loadInitialData(); showToast("info", "フィードの購読を解除しました"); });
+                            });
                           }}
                           className="text-gray-500 hover:text-red-400 text-sm font-bold p-0.5 transition-colors"
                           title="購読解除"
@@ -889,7 +1019,7 @@ export default function Dashboard() {
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Owner</span>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-red-100 dark:hover:bg-red-955/30 hover:border-red-900/30 border border-transparent transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-red-100 dark:hover:bg-red-950/30 hover:border-red-900/30 border border-transparent transition-all"
           >
             <LogOut className="h-3.5 w-3.5" />
             Logout
@@ -1165,7 +1295,7 @@ export default function Dashboard() {
                     ? (
                       <>
                         Aggregated RSS Articles
-                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-blue-150/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 ml-2">
+                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 ml-2">
                           カテゴリ: {categories.find(c => c.id === selectedCategoryId)?.name || ""}
                         </span>
                       </>
@@ -1190,7 +1320,7 @@ export default function Dashboard() {
                       onClick={() => openArticleReader(article)}
                       className={`group flex flex-col justify-between p-5 rounded-xl border transition-all shadow-lg hover:shadow-xl cursor-pointer ${
                         article.is_read
-                          ? "border-gray-200 bg-gray-50/50 dark:border-gray-800/40 dark:bg-gray-955/20 opacity-70"
+                          ? "border-gray-200 bg-gray-100/60 dark:border-gray-800/30 dark:bg-gray-900/40 opacity-60"
                           : "border-gray-200 bg-white hover:border-gray-350 dark:border-gray-800 dark:bg-gray-900/30 dark:hover:border-gray-700"
                       }`}
                     >
@@ -1235,7 +1365,7 @@ export default function Dashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="border border-gray-200 bg-white dark:border-gray-800/40 dark:bg-gray-955/20 rounded-xl divide-y divide-gray-200 dark:divide-gray-800/40 shadow-md">
+                <div className="border border-gray-200 bg-white dark:border-gray-800/40 dark:bg-gray-900/30 rounded-xl divide-y divide-gray-200 dark:divide-gray-800/40 shadow-md">
                   {filteredArticles.map((article) => (
                     <div
                       key={article.id}
@@ -1279,12 +1409,12 @@ export default function Dashboard() {
                       {activeSection === "bookmarks_content" && "コンテンツアーカイブ"}
                       {activeSection === "bookmarks_resource" && "リソースディレクトリ"}
                       {selectedCategoryId && (
-                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-indigo-150/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 ml-2">
+                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/40 ml-2">
                           カテゴリ: {categories.find(c => c.id === selectedCategoryId)?.name || ""}
                         </span>
                       )}
                       {selectedTagId && (
-                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-blue-150/50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 ml-2">
+                        <span className="text-sm font-semibold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/40 ml-2">
                           タグ: {tags.find(t => t.id === selectedTagId)?.name || ""}
                         </span>
                       )}
@@ -1301,7 +1431,7 @@ export default function Dashboard() {
 
               {filteredBookmarks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-16 border border-dashed border-gray-300 dark:border-gray-800 rounded-2xl bg-gray-900/5 dark:bg-gray-900/10">
-                  <Bookmark className="h-10 w-10 text-gray-450 dark:text-gray-600 mb-4" />
+                  <Bookmark className="h-10 w-10 text-gray-400 dark:text-gray-600 mb-4" />
                   <p className="text-gray-500 dark:text-gray-400 text-sm">ブックマークはまだ登録されていません。</p>
                 </div>
               ) : (
@@ -1315,7 +1445,7 @@ export default function Dashboard() {
                         {bookmark.thumbnail_url && (
                           <img
                             src={bookmark.thumbnail_url}
-                            className="w-full h-40 object-cover rounded-lg border border-gray-250 dark:border-gray-800 mb-4"
+                            className="w-full h-40 object-cover rounded-lg border border-gray-200 dark:border-gray-800 mb-4"
                             alt=""
                           />
                         )}
@@ -1362,7 +1492,7 @@ export default function Dashboard() {
                         </h3>
                         <p className="text-gray-600 dark:text-gray-400 text-sm mt-2 line-clamp-3">{bookmark.description}</p>
                         {bookmark.note && (
-                          <div className="p-3 text-xs bg-gray-50 dark:bg-gray-950/40 border border-gray-200 dark:border-gray-800/40 text-gray-650 dark:text-gray-400 rounded-lg mt-3">
+                          <div className="p-3 text-xs bg-gray-50 dark:bg-gray-950/40 border border-gray-200 dark:border-gray-800/40 text-gray-600 dark:text-gray-400 rounded-lg mt-3">
                             <strong className="text-gray-700 dark:text-gray-300 block mb-0.5">メモ:</strong>
                             {bookmark.note}
                           </div>
@@ -1437,13 +1567,23 @@ export default function Dashboard() {
                 {selectedArticle.feed_title || "RSS Article"}
               </span>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleSendArticleToInbox(selectedArticle)}
-                  className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/20 transition-all"
-                  title="受信トレイ (後で読む) に送る"
-                >
-                  <Inbox className="h-5 w-5" />
-                </button>
+                {isArticleInInbox || isArticleInSomeday ? (
+                  <button
+                    disabled
+                    className="p-2 rounded-lg text-green-600 dark:text-green-400 bg-green-500/10 border border-green-500/20 cursor-not-allowed"
+                    title={isArticleInInbox ? "受信トレイ (後で読む) に追加済み" : "そのうち読む (Someday) に追加済み"}
+                  >
+                    <Check className="h-5 w-5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSendArticleToInbox(selectedArticle)}
+                    className="p-2 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/20 transition-all"
+                    title="受信トレイ (後で読む) に送る"
+                  >
+                    <Inbox className="h-5 w-5" />
+                  </button>
+                )}
                 <button
                   onClick={() => toggleArticleFavorite(selectedArticle)}
                   className={`p-2 rounded-lg hover:bg-rose-500/10 border border-transparent transition-all ${
@@ -1753,7 +1893,7 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-1">
                       <div className="flex flex-col">
-                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                        <span className="block text-sm font-bold text-gray-900 dark:text-white">
                           コンテンツ
                         </span>
                         <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
@@ -1779,7 +1919,7 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-1">
                       <div className="flex flex-col">
-                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                        <span className="block text-sm font-bold text-gray-900 dark:text-white">
                           リソース
                         </span>
                         <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
@@ -1911,7 +2051,7 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-1">
                       <div className="flex flex-col">
-                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                        <span className="block text-sm font-bold text-gray-900 dark:text-white">
                           コンテンツ
                         </span>
                         <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
@@ -1937,7 +2077,7 @@ export default function Dashboard() {
                   >
                     <div className="flex flex-1">
                       <div className="flex flex-col">
-                        <span className="block text-sm font-bold text-gray-955 dark:text-white">
+                        <span className="block text-sm font-bold text-gray-900 dark:text-white">
                           リソース
                         </span>
                         <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
@@ -1974,7 +2114,7 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">Tags</label>
-                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 border border-gray-300 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-955/40">
+                <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 border border-gray-300 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-800/40">
                   {tags.map((t) => {
                     const isSelected = editBookmarkTags.includes(t.id);
                     return (
@@ -2011,7 +2151,7 @@ export default function Dashboard() {
                   value={editBookmarkNote}
                   onChange={(e) => setEditBookmarkNote(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-955/40 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-800/40 dark:text-white"
                 />
               </div>
 
@@ -2063,7 +2203,7 @@ export default function Dashboard() {
                 <select
                   value={editFeedCategory}
                   onChange={(e) => setEditFeedCategory(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-955/40 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:outline-none focus:ring-1 focus:ring-blue-500 text-sm dark:border-gray-800 dark:bg-gray-800/40 dark:text-white"
                 >
                   <option value="">No Category</option>
                   {categories
