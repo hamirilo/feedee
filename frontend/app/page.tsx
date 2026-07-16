@@ -190,7 +190,7 @@ export default function Dashboard() {
   const [newBookmarkNote, setNewBookmarkNote] = useState("");
   const [newBookmarkTags, setNewBookmarkTags] = useState<string[]>([]);
   const [promoteSourceId, setPromoteSourceId] = useState<string | null>(null);
-  const [promoteSourceType, setPromoteSourceType] = useState<"inbox" | "someday" | null>(null);
+  const [promoteSourceType, setPromoteSourceType] = useState<"inbox" | "someday" | "article" | null>(null);
   
   // Edit Bookmark Form states
   const [showEditBookmark, setShowEditBookmark] = useState(false);
@@ -483,6 +483,18 @@ export default function Dashboard() {
     setNewBookmarkTags([]);
     setPromoteSourceId(item.id);
     setPromoteSourceType(type);
+    setShowAddBookmark(true);
+  };
+
+  const openPromoteModalForArticle = (article: ArticleData) => {
+    setNewBookmarkUrl(article.url || "");
+    setNewBookmarkTitle(article.title || "");
+    setNewBookmarkType("content"); // default
+    setNewBookmarkCategory("");
+    setNewBookmarkNote(article.summary || "");
+    setNewBookmarkTags([]);
+    setPromoteSourceId(article.id);
+    setPromoteSourceType("article");
     setShowAddBookmark(true);
   };
 
@@ -1768,6 +1780,13 @@ export default function Dashboard() {
                     <Inbox className="h-5 w-5" />
                   </button>
                 )}
+                <button
+                  onClick={() => openPromoteModalForArticle(selectedArticle)}
+                  className="p-2 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20 transition-all"
+                  title="ブックマークに登録 / 昇格"
+                >
+                  <Bookmark className="h-5 w-5" />
+                </button>
                 <button
                   onClick={() => toggleArticleFavorite(selectedArticle)}
                   className={`p-2 rounded-lg hover:bg-rose-500/10 border border-transparent transition-all ${
