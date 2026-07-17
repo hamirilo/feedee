@@ -22,7 +22,7 @@ services:
     ports:
       - "3010:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8010}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     depends_on:
       backend:
         condition: service_started
@@ -38,7 +38,7 @@ services:
       - ./backend:/app
       - /app/.venv
     ports:
-      - "8010:8000"
+      - "8000:8000"
     env_file:
       - path: .env
         required: false
