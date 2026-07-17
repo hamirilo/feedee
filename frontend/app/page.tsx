@@ -92,7 +92,7 @@ export default function Dashboard() {
   const [editFeedCategory, setEditFeedCategory] = useState("");
 
   // RSS Filter States
-  const [rssFilterRead, setRssFilterRead] = useState<boolean | undefined>(undefined);
+  const [rssFilterUnreadOnly, setRssFilterUnreadOnly] = useState<boolean>(false);
   const [rssFilterFav, setRssFilterFav] = useState<boolean | undefined>(undefined);
 
   // Category creation states
@@ -170,7 +170,7 @@ export default function Dashboard() {
         const data = await api.getArticles({
           feedId: feedId || undefined,
           categoryId: catId || undefined,
-          isRead: rssFilterRead,
+          isRead: rssFilterUnreadOnly ? false : undefined,
           isFavorited: rssFilterFav,
         });
         setArticles(data);
@@ -197,7 +197,7 @@ export default function Dashboard() {
     if (localStorage.getItem(TOKEN_KEY)) {
       refreshSectionContent(activeSection, selectedFeedId, selectedCategoryId, selectedTagId);
     }
-  }, [activeSection, selectedFeedId, selectedCategoryId, selectedTagId, rssFilterRead, rssFilterFav, archiveSearchQuery]);
+  }, [activeSection, selectedFeedId, selectedCategoryId, selectedTagId, rssFilterUnreadOnly, rssFilterFav, archiveSearchQuery]);
 
   const handleLogout = () => {
     localStorage.removeItem(TOKEN_KEY);
@@ -589,8 +589,8 @@ export default function Dashboard() {
         setArchiveSearchQuery={setArchiveSearchQuery}
         bookmarksSearchQuery={bookmarksSearchQuery}
         setBookmarksSearchQuery={setBookmarksSearchQuery}
-        rssFilterRead={rssFilterRead}
-        setRssFilterRead={setRssFilterRead}
+        rssFilterUnreadOnly={rssFilterUnreadOnly}
+        setRssFilterUnreadOnly={setRssFilterUnreadOnly}
         rssFilterFav={rssFilterFav}
         setRssFilterFav={setRssFilterFav}
         handleInboxAction={handleInboxAction}

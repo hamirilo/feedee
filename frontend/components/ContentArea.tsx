@@ -82,8 +82,8 @@ export interface ContentAreaProps {
   bookmarksSearchQuery: string;
   setBookmarksSearchQuery: (q: string) => void;
 
-  rssFilterRead: boolean | undefined;
-  setRssFilterRead: (read: boolean | undefined) => void;
+  rssFilterUnreadOnly: boolean;
+  setRssFilterUnreadOnly: (unreadOnly: boolean) => void;
   rssFilterFav: boolean | undefined;
   setRssFilterFav: (fav: boolean | undefined) => void;
 
@@ -140,8 +140,8 @@ export function ContentArea({
   bookmarksSearchQuery,
   setBookmarksSearchQuery,
 
-  rssFilterRead,
-  setRssFilterRead,
+  rssFilterUnreadOnly,
+  setRssFilterUnreadOnly,
   rssFilterFav,
   setRssFilterFav,
 
@@ -208,11 +208,11 @@ export function ContentArea({
           {activeSection === "rss" && (
             <div className="flex items-center bg-gray-100 dark:bg-gray-900/40 p-1 rounded-xl border border-gray-200 dark:border-gray-800/60 shrink-0 gap-1">
               <Button
-                variant={rssFilterRead ? "secondary" : "ghost"}
+                variant={rssFilterUnreadOnly ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => setRssFilterRead(!rssFilterRead)}
+                onClick={() => setRssFilterUnreadOnly(!rssFilterUnreadOnly)}
                 className={`h-7 px-3 text-xs font-bold rounded-lg ${
-                  rssFilterRead ? "text-blue-600 dark:text-blue-400 shadow-sm bg-white dark:bg-gray-800" : "text-gray-500 dark:text-gray-400"
+                  rssFilterUnreadOnly ? "text-blue-600 dark:text-blue-400 shadow-sm bg-white dark:bg-gray-800" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
                 未読のみ
