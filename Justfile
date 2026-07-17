@@ -61,12 +61,12 @@ default:
 
 # Start dev environment in foreground (auto-cleans frontend cache)
 dev:
-    rm -rf frontend/.next
+    -rm -rf frontend/.next
     {{compose}} up --build
 
 # Start dev environment in background (auto-cleans frontend cache)
 dev-bg:
-    rm -rf frontend/.next
+    -rm -rf frontend/.next
     {{compose}} up --build -d
 
 # Stop dev environment

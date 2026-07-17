@@ -27,6 +27,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { ContentArea } from "@/components/ContentArea";
 import { ArticleReaderSheet } from "@/components/ArticleReaderSheet";
 import { FormModals } from "@/components/FormModals";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export type Section = "inbox" | "someday" | "archive" | "bookmarks_content" | "bookmarks_resource" | "rss" | "pinned" | "favorites";
 
@@ -40,6 +41,20 @@ export default function Dashboard() {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1023px)");
+    setIsMobile(media.matches);
+    const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, []);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [activeSection, selectedFeedId, selectedCategoryId, selectedTagId]);
 
   // Confirm Dialog
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
@@ -511,6 +526,19 @@ export default function Dashboard() {
     (b.title || b.url || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const activeIndex = selectedArticle
+    ? filteredArticles.findIndex((a) => a.id === selectedArticle.id)
+    : -1;
+
+  const selectArticle = useCallback((index: number) => {
+    if (index < 0 || index >= filteredArticles.length) return;
+    const article = filteredArticles[index];
+    setSelectedArticle(article);
+    if (!article.is_read) {
+      handleArticleReadState(article, true);
+    }
+  }, [filteredArticles, handleArticleReadState]);
+
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-[#070b14] text-gray-700 dark:text-gray-200 overflow-hidden font-sans transition-colors duration-200">
       {/* Confirm Dialog */}
@@ -537,34 +565,69 @@ export default function Dashboard() {
         )}
       </AlertDialog>
 
-      {/* 1. LEFT SIDEBAR */}
-      <Sidebar
-        activeSection={activeSection}
-        setActiveSection={setActiveSection}
-        selectedFeedId={selectedFeedId}
-        setSelectedFeedId={setSelectedFeedId}
-        selectedCategoryId={selectedCategoryId}
-        setSelectedCategoryId={setSelectedCategoryId}
-        selectedTagId={selectedTagId}
-        setSelectedTagId={setSelectedTagId}
-        categories={categories}
-        tags={tags}
-        subscriptions={subscriptions}
-        inboxItems={inboxItems}
-        somedayItems={somedayItems}
-        archivedItems={archivedItems}
-        setNewCategoryScope={setNewCategoryScope}
-        setShowAddCategory={setShowAddCategory}
-        setShowAddTag={setShowAddTag}
-        setShowAddFeed={setShowAddFeed}
-        setEditingFeedId={setEditingFeedId}
-        setEditFeedDisplayName={setEditFeedDisplayName}
-        setEditFeedCategory={setEditFeedCategory}
-        setShowEditFeed={setShowEditFeed}
-        handleLogout={handleLogout}
-        loadInitialData={loadInitialData}
-        showConfirm={showConfirm}
-      />
+      {/* 1. LEFT SIDEBAR (Desktop) */}
+      <div className="hidden lg:flex h-full shrink-0">
+        <Sidebar
+          activeSection={activeSection}
+          setActiveSection={setActiveSection}
+          selectedFeedId={selectedFeedId}
+          setSelectedFeedId={setSelectedFeedId}
+          selectedCategoryId={selectedCategoryId}
+          setSelectedCategoryId={setSelectedCategoryId}
+          selectedTagId={selectedTagId}
+          setSelectedTagId={setSelectedTagId}
+          categories={categories}
+          tags={tags}
+          subscriptions={subscriptions}
+          inboxItems={inboxItems}
+          somedayItems={somedayItems}
+          archivedItems={archivedItems}
+          setNewCategoryScope={setNewCategoryScope}
+          setShowAddCategory={setShowAddCategory}
+          setShowAddTag={setShowAddTag}
+          setShowAddFeed={setShowAddFeed}
+          setEditingFeedId={setEditingFeedId}
+          setEditFeedDisplayName={setEditFeedDisplayName}
+          setEditFeedCategory={setEditFeedCategory}
+          setShowEditFeed={setShowEditFeed}
+          handleLogout={handleLogout}
+          loadInitialData={loadInitialData}
+          showConfirm={showConfirm}
+        />
+      </div>
+
+      {/* 1. LEFT SIDEBAR (Mobile Drawer) */}
+      <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+        <SheetContent side="left" className="p-0 w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+          <Sidebar
+            activeSection={activeSection}
+            setActiveSection={setActiveSection}
+            selectedFeedId={selectedFeedId}
+            setSelectedFeedId={setSelectedFeedId}
+            selectedCategoryId={selectedCategoryId}
+            setSelectedCategoryId={setSelectedCategoryId}
+            selectedTagId={selectedTagId}
+            setSelectedTagId={setSelectedTagId}
+            categories={categories}
+            tags={tags}
+            subscriptions={subscriptions}
+            inboxItems={inboxItems}
+            somedayItems={somedayItems}
+            archivedItems={archivedItems}
+            setNewCategoryScope={setNewCategoryScope}
+            setShowAddCategory={setShowAddCategory}
+            setShowAddTag={setShowAddTag}
+            setShowAddFeed={setShowAddFeed}
+            setEditingFeedId={setEditingFeedId}
+            setEditFeedDisplayName={setEditFeedDisplayName}
+            setEditFeedCategory={setEditFeedCategory}
+            setShowEditFeed={setShowEditFeed}
+            handleLogout={handleLogout}
+            loadInitialData={loadInitialData}
+            showConfirm={showConfirm}
+          />
+        </SheetContent>
+      </Sheet>
 
       {/* 2. MAIN WORKSPACE */}
       <ContentArea
@@ -607,9 +670,17 @@ export default function Dashboard() {
         setShowEditBookmark={setShowEditBookmark}
         toggleBookmarkPin={toggleBookmarkPin}
         toggleBookmarkFavorite={toggleBookmarkFavorite}
+        
+        selectedArticle={selectedArticle}
         setSelectedArticle={setSelectedArticle}
         handleArticleReadState={handleArticleReadState}
         handleArticleFavState={handleArticleFavState}
+        handleSendArticleToInbox={handleSendArticleToInbox}
+        openPromoteModalForArticle={openPromoteModalForArticle}
+        toggleArticleFavorite={toggleArticleFavorite}
+        
+        isMobile={isMobile}
+        setIsSidebarOpen={setIsSidebarOpen}
         showConfirm={showConfirm}
       />
 
@@ -622,6 +693,11 @@ export default function Dashboard() {
         handleSendArticleToInbox={handleSendArticleToInbox}
         openPromoteModalForArticle={openPromoteModalForArticle}
         toggleArticleFavorite={toggleArticleFavorite}
+        isMobile={isMobile}
+        onPrev={activeIndex > 0 ? () => selectArticle(activeIndex - 1) : undefined}
+        onNext={activeIndex >= 0 && activeIndex < filteredArticles.length - 1 ? () => selectArticle(activeIndex + 1) : undefined}
+        hasPrev={activeIndex > 0}
+        hasNext={activeIndex >= 0 && activeIndex < filteredArticles.length - 1}
       />
 
       <FormModals

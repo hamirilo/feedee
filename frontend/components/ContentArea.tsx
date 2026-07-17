@@ -29,7 +29,10 @@ import {
   Trash2,
   AlertTriangle,
   Heart,
+  Menu,
+  ChevronLeft,
 } from "lucide-react";
+import { ArticleReaderContent } from "./ArticleReaderContent";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,9 +111,17 @@ export interface ContentAreaProps {
   toggleBookmarkFavorite: (bookmark: BookmarkData) => void;
 
   // Selected article
+  selectedArticle: ArticleData | null;
   setSelectedArticle: (article: ArticleData | null) => void;
   handleArticleReadState: (article: ArticleData, isRead: boolean) => void;
   handleArticleFavState: (article: ArticleData, isFav: boolean) => void;
+  handleSendArticleToInbox: (article: ArticleData) => void;
+  openPromoteModalForArticle: (article: ArticleData) => void;
+  toggleArticleFavorite: (article: ArticleData) => void;
+
+  // Mobile
+  isMobile: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
 
   showConfirm: (message: string, onConfirm: () => void) => void;
 }
@@ -162,9 +173,16 @@ export function ContentArea({
   toggleBookmarkPin,
   toggleBookmarkFavorite,
 
+  selectedArticle,
   setSelectedArticle,
   handleArticleReadState,
   handleArticleFavState,
+  handleSendArticleToInbox,
+  openPromoteModalForArticle,
+  toggleArticleFavorite,
+
+  isMobile,
+  setIsSidebarOpen,
 
   showConfirm,
 }: ContentAreaProps) {
@@ -174,11 +192,70 @@ export function ContentArea({
   const activeCategory = selectedCategoryId ? categories.find((c) => c.id === selectedCategoryId) : null;
   const activeTag = selectedTagId ? tags.find((t) => t.id === selectedTagId) : null;
 
+  const activeIndex = selectedArticle
+    ? rssItems.findIndex((a) => a.id === selectedArticle.id)
+    : -1;
+  const hasPrev = activeIndex > 0;
+  const hasNext = activeIndex >= 0 && activeIndex < rssItems.length - 1;
+
+  const selectArticle = (index: number) => {
+    if (index < 0 || index >= rssItems.length) return;
+    const article = rssItems[index];
+    setSelectedArticle(article);
+    if (!article.is_read) {
+      handleArticleReadState(article, true);
+    }
+  };
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.getAttribute("contenteditable") === "true")
+      ) {
+        return;
+      }
+
+      if (e.key === "j" || e.key === "J" || e.key === "ArrowDown") {
+        e.preventDefault();
+        if (hasNext) {
+          selectArticle(activeIndex + 1);
+        } else if (activeIndex === -1 && rssItems.length > 0) {
+          selectArticle(0);
+        }
+      } else if (e.key === "k" || e.key === "K" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (hasPrev) {
+          selectArticle(activeIndex - 1);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeIndex, hasPrev, hasNext, rssItems]);
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-[#070b14] transition-colors duration-200">
       {/* Workspace Header */}
       <header className="h-16 border-b border-gray-200 dark:border-gray-800/40 bg-white/70 dark:bg-gray-900/10 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-10 transition-colors duration-200">
-        <div className="flex items-center gap-6 grow max-w-md">
+        <div className="flex items-center gap-4 lg:gap-6 grow max-w-md">
+          {/* Hamburger Menu Trigger for Mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden shrink-0 -ml-2 text-gray-500 hover:text-gray-900 dark:hover:text-white"
+            onClick={() => setIsSidebarOpen(true)}
+            title="メニューを開く"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+
           {activeSection === "rss" && (
             <div className="relative w-full">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500 z-10" />
@@ -233,7 +310,13 @@ export function ContentArea({
       </header>
 
       {/* Main Content Pane */}
-      <div className="flex-1 overflow-y-auto p-8">
+      <div
+        className={
+          activeSection === "rss"
+            ? "flex-1 flex overflow-hidden bg-white dark:bg-[#070b14] transition-colors duration-200"
+            : "flex-1 overflow-y-auto p-8"
+        }
+      >
         {/* SECTION: INBOX */}
         {activeSection === "inbox" && (
           <div className="max-w-4xl mx-auto space-y-6">
@@ -742,94 +825,144 @@ export function ContentArea({
 
         {/* SECTION: RSS (Feed Detail article list) */}
         {activeSection === "rss" && (
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                {activeFeed ? activeFeed.display_name || activeFeed.title : "すべてのRSS記事"}
-              </h1>
-              {activeFeed && (
-                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 truncate">
-                  URL: {activeFeed.url}
-                </p>
-              )}
-            </div>
-
-            {rssItems.length === 0 ? (
-              <div className="text-center py-20 bg-white/50 dark:bg-gray-900/10 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-10 transition-colors duration-200">
-                <AlertTriangle className="h-10 w-10 text-gray-400 dark:text-gray-600 mb-4" />
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  表示する記事が見つかりません。
-                </p>
+          <>
+            {/* Left Column: Article List */}
+            <div className="w-full lg:w-[420px] shrink-0 border-r border-gray-200 dark:border-gray-800/40 flex flex-col h-full overflow-hidden bg-gray-50/30 dark:bg-transparent">
+              {/* Title & Info Header inside List Column */}
+              <div className="p-6 border-b border-gray-200 dark:border-gray-800/40 shrink-0">
+                <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white truncate">
+                  {activeFeed ? activeFeed.display_name || activeFeed.title : "すべてのRSS記事"}
+                </h1>
+                {activeFeed && (
+                  <p className="text-gray-500 dark:text-gray-400 text-xs mt-1 truncate">
+                    URL: {activeFeed.url}
+                  </p>
+                )}
               </div>
-            ) : (
-              <div className="space-y-4">
-                {rssItems.map((article) => (
-                  <div
-                    key={article.id}
-                    onClick={() => {
-                      setSelectedArticle(article);
-                      // Mark read automatically
-                      if (!article.is_read) {
-                        handleArticleReadState(article, true);
-                      }
-                    }}
-                    className={`group flex flex-col md:flex-row gap-5 p-5 rounded-xl border transition-all cursor-pointer shadow-md bg-white hover:border-gray-300 dark:bg-gray-900/20 dark:hover:border-gray-700 ${
-                      article.is_read
-                        ? "border-gray-200 opacity-60 dark:border-gray-800/40"
-                        : "border-blue-200 dark:border-blue-900/30 ring-1 ring-blue-500/10"
-                    }`}
-                  >
-                    {article.thumbnail_url && (
-                      <img
-                        src={article.thumbnail_url}
-                        className="w-full md:w-32 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800 shrink-0"
-                        alt=""
-                      />
-                    )}
-                    <div className="flex flex-col justify-between grow min-w-0">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500 font-mono truncate max-w-[200px]">
-                            {article.feed_title || "RSS Feed"}
-                          </span>
-                          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => handleArticleReadState(article, !article.is_read)}
-                              className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
-                                article.is_read ? "text-gray-400" : "text-blue-600 dark:text-blue-400"
-                              }`}
-                              title={article.is_read ? "未読にする" : "既読にする"}
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleArticleFavState(article, !article.is_favorited)}
-                              className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
-                                article.is_favorited ? "text-rose-500" : "text-gray-400"
-                              }`}
-                              title={article.is_favorited ? "お気に入り解除" : "お気に入り登録"}
-                            >
-                              <Heart className={`w-3.5 h-3.5 ${article.is_favorited ? "fill-current" : ""}`} />
-                            </button>
+
+              {/* Scrollable list */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {rssItems.length === 0 ? (
+                  <div className="text-center py-20 bg-white/50 dark:bg-gray-900/10 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-10 transition-colors duration-200">
+                    <AlertTriangle className="h-10 w-10 text-gray-400 dark:text-gray-600 mb-4 mx-auto" />
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">
+                      表示する記事が見つかりません。
+                    </p>
+                  </div>
+                ) : (
+                  rssItems.map((article) => {
+                    const summaryText = article.summary
+                      ? article.summary.replace(/<[^>]*>/g, "").trim()
+                      : "";
+
+                    return (
+                      <div
+                        key={article.id}
+                        onClick={() => {
+                          setSelectedArticle(article);
+                          // Mark read automatically
+                          if (!article.is_read) {
+                            handleArticleReadState(article, true);
+                          }
+                        }}
+                        className={`group flex items-start justify-between gap-4 p-4 rounded-xl border transition-all cursor-pointer shadow-sm bg-white hover:border-gray-300 dark:bg-gray-900/20 dark:hover:border-gray-700 ${
+                          selectedArticle?.id === article.id
+                            ? "border-blue-500 bg-blue-50/20 dark:bg-blue-950/25 ring-2 ring-blue-500/20 dark:border-blue-500/60"
+                            : article.is_read
+                            ? "border-gray-200 opacity-60 dark:border-gray-800/40"
+                            : "border-blue-200 dark:border-blue-900/30 ring-1 ring-blue-500/10"
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xxs text-gray-500 font-mono truncate max-w-[150px]">
+                              {article.feed_title || "RSS Feed"}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleArticleReadState(article, !article.is_read)}
+                                className={`p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+                                  article.is_read ? "text-gray-400" : "text-blue-600 dark:text-blue-400"
+                                }`}
+                                title={article.is_read ? "未読にする" : "既読にする"}
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleArticleFavState(article, !article.is_favorited)}
+                                className={`p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+                                  article.is_favorited ? "text-rose-500" : "text-gray-400"
+                                }`}
+                                title={article.is_favorited ? "お気に入り解除" : "お気に入り登録"}
+                              >
+                                <Heart className={`w-3.5 h-3.5 ${article.is_favorited ? "fill-current" : ""}`} />
+                              </button>
+                            </div>
                           </div>
+
+                          <h3 className={`text-sm font-bold mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug ${
+                            article.is_read ? "text-gray-700 dark:text-gray-400" : "text-gray-900 dark:text-white"
+                          }`}>
+                            {article.title}
+                          </h3>
+
+                          {summaryText && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2 leading-relaxed">
+                              {summaryText}
+                            </p>
+                          )}
+
+                          <p className="text-[10px] text-gray-450 dark:text-gray-500 mt-2">
+                            {article.published_at ? new Date(article.published_at).toLocaleString() : ""}
+                          </p>
                         </div>
 
-                        <h3 className={`text-base font-bold mt-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 ${
-                          article.is_read ? "text-gray-700 dark:text-gray-400" : "text-gray-900 dark:text-white"
-                        }`}>
-                          {article.title}
-                        </h3>
-                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
-                          {article.published_at ? new Date(article.published_at).toLocaleString() : ""}
-                        </p>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm mt-2 line-clamp-2">{article.summary}</p>
+                        {article.thumbnail_url && (
+                          <img
+                            src={article.thumbnail_url}
+                            className="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-800 shrink-0 mt-0.5"
+                            alt=""
+                          />
+                        )}
                       </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })
+                )}
               </div>
-            )}
-          </div>
+            </div>
+
+            {/* Right Column: Article Viewer (Desktop only) */}
+            <div className="hidden lg:block flex-1 h-full overflow-hidden border-l border-gray-200 dark:border-gray-800/40 bg-white dark:bg-[#080d17]/40">
+              {selectedArticle ? (
+                <ArticleReaderContent
+                  article={selectedArticle}
+                  inboxItems={inboxItems}
+                  somedayItems={somedayItems}
+                  handleSendArticleToInbox={handleSendArticleToInbox}
+                  openPromoteModalForArticle={openPromoteModalForArticle}
+                  toggleArticleFavorite={toggleArticleFavorite}
+                  onClose={() => setSelectedArticle(null)}
+                  onPrev={hasPrev ? () => selectArticle(activeIndex - 1) : undefined}
+                  onNext={hasNext ? () => selectArticle(activeIndex + 1) : undefined}
+                  hasPrev={hasPrev}
+                  hasNext={hasNext}
+                />
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-gray-50/20 dark:bg-[#080d16]/30">
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800/60 flex items-center justify-center mb-4 text-gray-400 dark:text-gray-600 shadow-inner">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">記事が選択されていません</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-sm">
+                    左のリストから記事を選択して読み始めましょう。<br />
+                    キーボードの <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-400 shadow-sm">J</kbd> / <kbd className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-400 shadow-sm">K</kbd> キーでも前後の記事を選択できます。
+                  </p>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </main>
