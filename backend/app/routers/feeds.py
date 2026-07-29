@@ -30,13 +30,13 @@ class FeedUpdate(BaseModel):
 
 
 class FeedResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     url: str
     title: str | None = None
     site_url: str | None = None
     favicon_url: str | None = None
     display_name: str | None = None
-    category_id: str | None = None
+    category_id: uuid.UUID | None = None
     order: int
 
     class Config:
@@ -44,8 +44,8 @@ class FeedResponse(BaseModel):
 
 
 class ArticleResponse(BaseModel):
-    id: str
-    feed_id: str
+    id: uuid.UUID
+    feed_id: uuid.UUID
     feed_title: str | None
     url: str
     title: str | None

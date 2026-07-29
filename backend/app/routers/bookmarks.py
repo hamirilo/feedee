@@ -39,7 +39,7 @@ class BookmarkUpdate(BaseModel):
 
 
 class TagResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     name: str
     color: str
 
@@ -48,14 +48,14 @@ class TagResponse(BaseModel):
 
 
 class BookmarkResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     url: str
     title: str | None = None
     description: str | None = None
     thumbnail_url: str | None = None
     note: str | None = None
     bookmark_type: BookmarkType
-    category_id: str | None = None
+    category_id: uuid.UUID | None = None
     tags: list[TagResponse] = []
     is_pinned: bool = False
     is_favorited: bool = False

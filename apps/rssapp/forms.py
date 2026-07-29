@@ -174,23 +174,13 @@ class BookmarkForm(forms.ModelForm):
 class BookmarkCategoryForm(forms.ModelForm):
     class Meta:
         model = BookmarkCategory
-        fields = ["name", "description", "color", "parent"]
+        fields = ["name", "color"]
         widgets = {
             "name": forms.TextInput(
                 attrs={"class": _INPUT_CLASS, "placeholder": "Category name"}
             ),
-            "description": forms.Textarea(
-                attrs={
-                    "class": _INPUT_CLASS,
-                    "placeholder": "Description (optional)",
-                    "rows": 2,
-                }
-            ),
             "color": forms.HiddenInput(
                 attrs={"x-model": "selectedColor"}
-            ),
-            "parent": forms.Select(
-                attrs={"class": _INPUT_CLASS}
             ),
         }
 

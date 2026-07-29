@@ -32,24 +32,23 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     command: >
-      sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000"
+      sh -c "uv run python manage.py migrate && uv run python manage.py create_admin_user && uv run gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
-      - ./backend:/app
+      - .:/app
       - /app/.venv
     ports:
       - "8000:8000"
     env_file:
       - .env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-feedee}:${POSTGRES_PASSWORD:-feedee}@db:5432/${POSTGRES_DB:-feedee}
-      - DEBUG=false
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-feedee}:${POSTGRES_PASSWORD:-feedee}@db:5432/${POSTGRES_DB:-feedee}
+      - DJANGO_DEBUG=False
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin-password}
       - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-["http://localhost:8082","http://127.0.0.1:8082","http://192.168.1.50:8082"]}
       - SECRET_KEY=${FASTAPI_SECRET_KEY:-change-me-to-a-random-secret-key}
     depends_on:
       db:

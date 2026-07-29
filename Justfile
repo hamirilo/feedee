@@ -117,15 +117,15 @@ prod-build: prod-check-env
 
 # Run database migrations in production environment
 prod-migrate: prod-check-env
-    {{compose_prod}} exec backend uv run alembic upgrade head
+    {{compose_prod}} exec backend uv run python manage.py migrate
 
 # Create superuser in production environment
 prod-superuser: prod-check-env
-    {{compose_prod}} exec backend python -m app.create_superuser
+    {{compose_prod}} exec backend uv run python manage.py create_admin_user
 
 # Open interactive shell in production environment
 prod-shell: prod-check-env
-    {{compose_prod}} exec backend python
+    {{compose_prod}} exec backend uv run python manage.py shell
 
 # ===================================================================
 #  Local Development (Direct Execution)
@@ -133,11 +133,11 @@ prod-shell: prod-check-env
 
 # Run database migrations locally
 local-migrate:
-    cd backend && uv run alembic upgrade head
+    uv run python manage.py migrate
 
 # Open python shell locally
 local-shell:
-    cd backend && uv run python
+    uv run python manage.py shell
 
 # Run RSS worker locally
 local-worker:
@@ -145,7 +145,7 @@ local-worker:
 
 # Create superuser locally
 local-superuser:
-    cd backend && uv run python -m app.create_superuser
+    uv run python manage.py create_admin_user
 
 
 # ===================================================================

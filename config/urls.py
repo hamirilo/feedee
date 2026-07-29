@@ -5,8 +5,20 @@ from django.urls import include, path
 from apps.rssapp.forms import EmailLoginForm
 from apps.rssapp.views import register_view
 
+from django.http import JsonResponse
+from apps.api.api import api
+
+
+def health_view(request):
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("app/", api.urls),
+    path("health", health_view),
+
+
     path(
         "login/",
         auth_views.LoginView.as_view(

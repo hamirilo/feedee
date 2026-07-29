@@ -1,3 +1,4 @@
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -20,7 +21,7 @@ class CategoryCreate(BaseModel):
 
 
 class CategoryResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     name: str
     color: str
     scope: CategoryScope
@@ -35,7 +36,7 @@ class TagCreate(BaseModel):
 
 
 class TagResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     name: str
     color: str
 

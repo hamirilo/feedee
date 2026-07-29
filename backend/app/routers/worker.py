@@ -40,7 +40,7 @@ async def verify_worker_token(authorization: Annotated[str | None, Header()] = N
 
 
 class WorkerFeedResponse(BaseModel):
-    id: str
+    id: uuid.UUID
     name: str
     url: str
     etag: str | None = None
