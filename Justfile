@@ -152,9 +152,9 @@ local-superuser:
 #  Testing, Linting & Formatting
 # ===================================================================
 
-# Run Django tests
+# Run tests (pytest)
 test:
-    {{python_run}} manage.py test apps.rssapp
+    uv run pytest
 
 # Run linters (ruff)
 lint:
@@ -164,11 +164,24 @@ lint:
 fmt:
     uv run ruff format .
 
+# Auto-fix linting and formatting
+fix:
+    uv run ruff check --fix . && uv run ruff format .
+
+# Sync AI platform configuration (.claude)
+sync-platform:
+    ./ai-platform/scripts/sync-claude.sh
+
+# Update AI platform submodule
+update-platform:
+    ./ai-platform/scripts/update-platform.sh
+
 # Remove Python cache and build artifacts
 clean:
     find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
     find . -type f -name '*.py[co]' -delete 2>/dev/null || true
     rm -rf build/ dist/ *.egg-info
+
 
 # ===================================================================
 #  Database Backup & Restore

@@ -1,7 +1,7 @@
 [project]
 name = "feedee"
 version = "0.1.0"
-description = "Add your description here"
+description = "RSS Reader & Bookmark Manager"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -18,3 +18,35 @@ dependencies = [
   "pyjwt>=2.8.0",
   "passlib[bcrypt]>=1.7",
 ]
+
+[dependency-groups]
+dev = [
+  "ruff>=0.4.0",
+  "pytest>=8.0",
+  "pytest-django>=4.8",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+extend-exclude = [
+    "ai-platform",
+    "*/migrations/*",
+    "staticfiles/*",
+    "media/*",
+]
+
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.development"
+python_files = ["tests.py", "test_*.py"]
+norecursedirs = ["ai-platform", ".venv", "node_modules", "backend"]
+
+
