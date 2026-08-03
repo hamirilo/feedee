@@ -51,3 +51,7 @@ screenshot.png
 test_output.txt
 test_fail.txt
 
+# AI platform sync
+.claude/
+
+
