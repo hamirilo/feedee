@@ -45,6 +45,7 @@ bin/rss-worker
 node_modules/
 static/dist/
 .vite/
+package-lock.json
 
 # Local debug artifacts
 screenshot.png
@@ -53,5 +54,6 @@ test_fail.txt
 
 # AI platform sync
 .claude/
+
 
 

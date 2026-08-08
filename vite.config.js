@@ -1,5 +1,6 @@
 import { resolve } from "path";
 import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 
 const vitePort = Number(process.env.VITE_PORT || 5847);
 const viteClientPort = Number(process.env.VITE_CLIENT_PORT || vitePort);
@@ -7,11 +8,11 @@ const viteHmrHost = process.env.VITE_HMR_HOST || "localhost";
 const viteDevUrl = process.env.VITE_DEV_URL || `http://${viteHmrHost}:${viteClientPort}`;
 
 export default defineConfig({
+  plugins: [
+    tailwindcss(),
+  ],
   root: resolve(__dirname, "frontend"),
   base: "/static/",
-  css: {
-    postcss: resolve(__dirname, "postcss.config.js"),
-  },
   build: {
     manifest: "manifest.json",
     outDir: resolve(__dirname, "static/dist"),
@@ -34,3 +35,4 @@ export default defineConfig({
     },
   },
 });
+
