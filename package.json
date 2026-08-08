@@ -12,6 +12,7 @@
     "vite": "^6.3.1"
   },
   "dependencies": {
+    "@hamirilo/ui": "file:../hamirilo-ui",
     "alpinejs": "^3.15.12"
   }
 }

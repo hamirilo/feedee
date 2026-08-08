@@ -25,8 +25,6 @@ import {
   LogOut,
   MoreVertical,
   Edit,
-  Sun,
-  Moon,
   Rss,
   Bookmark,
 } from "lucide-react";
@@ -39,8 +37,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { NavItem } from "@/components/NavItem";
 
 function FeedIcon({ url, faviconUrl, className = "w-3.5 h-3.5" }: { url: string; faviconUrl: string | null; className?: string }) {
   const [isError, setIsError] = useState(false);
@@ -58,8 +57,6 @@ function FeedIcon({ url, faviconUrl, className = "w-3.5 h-3.5" }: { url: string;
     />
   );
 }
-
-const springTransition = { type: "spring" as const, stiffness: 380, damping: 30 };
 
 export interface SidebarProps {
   activeSection: Section;
@@ -116,12 +113,17 @@ export function Sidebar({
   loadInitialData,
   showConfirm,
 }: SidebarProps) {
-  const { theme, setTheme } = useTheme();
   // Sidebar feed lists collapsed states
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
   const toggleCategoryCollapse = (catId: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [catId]: !prev[catId] }));
+  };
+
+  const clearSubSelections = () => {
+    setSelectedFeedId(null);
+    setSelectedCategoryId(null);
+    setSelectedTagId(null);
   };
 
   return (
@@ -138,164 +140,72 @@ export function Sidebar({
             <span className="font-extrabold text-gray-900 dark:text-white tracking-tight">feedee</span>
           </div>
 
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors"
-          >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          <ThemeToggle />
         </div>
 
         {/* Navigation list */}
-        <nav className="p-4 space-y-1 border-b border-gray-200 dark:border-gray-800/40 transition-colors duration-200">
-          <button
+        <nav aria-label="メインナビゲーション" className="p-4 space-y-1 border-b border-gray-200 dark:border-gray-800/40 transition-colors duration-200">
+          <NavItem
+            isActive={activeSection === "inbox"}
             onClick={() => {
               setActiveSection("inbox");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "inbox"
-                ? "text-blue-500 dark:text-blue-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Inbox className="h-4 w-4" />
-              受信トレイ (後で読む)
-            </span>
-            {inboxItems.length > 0 && (
-              <span className="relative z-10 px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-600/20 text-blue-500 dark:text-blue-400">
-                {inboxItems.length}
-              </span>
-            )}
-            {activeSection === "inbox" && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-blue-600/10 dark:bg-blue-600/20 border border-blue-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
+            icon={<Inbox className="h-4 w-4" />}
+            label="受信トレイ (後で読む)"
+            count={inboxItems.length}
+            activeColor="blue"
+          />
 
-          <button
+          <NavItem
+            isActive={activeSection === "someday"}
             onClick={() => {
               setActiveSection("someday");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "someday"
-                ? "text-indigo-500 dark:text-indigo-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Clock className="h-4 w-4" />
-              いつか読む
-            </span>
-            {somedayItems.length > 0 && (
-              <span className="relative z-10 px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-600/20 text-indigo-500 dark:text-indigo-400">
-                {somedayItems.length}
-              </span>
-            )}
-            {activeSection === "someday" && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-indigo-600/10 dark:bg-indigo-600/20 border border-indigo-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
+            icon={<Clock className="h-4 w-4" />}
+            label="いつか読む"
+            count={somedayItems.length}
+            activeColor="indigo"
+          />
 
-          <button
+          <NavItem
+            isActive={activeSection === "archive"}
             onClick={() => {
               setActiveSection("archive");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "archive"
-                ? "text-teal-500 dark:text-teal-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Archive className="h-4 w-4" />
-              アーカイブ
-            </span>
-            {archivedItems.length > 0 && (
-              <span className="relative z-10 px-2 py-0.5 text-xs font-semibold rounded-full bg-teal-600/20 text-teal-500 dark:text-teal-400">
-                {archivedItems.length}
-              </span>
-            )}
-            {activeSection === "archive" && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-teal-600/10 dark:bg-teal-600/20 border border-teal-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
+            icon={<Archive className="h-4 w-4" />}
+            label="アーカイブ"
+            count={archivedItems.length}
+            activeColor="teal"
+          />
 
-          <button
+          <NavItem
+            isActive={activeSection === "pinned"}
             onClick={() => {
               setActiveSection("pinned");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "pinned"
-                ? "text-amber-500 dark:text-amber-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Pin className="h-4 w-4" />
-              ピン留め
-            </span>
-            {activeSection === "pinned" && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-amber-600/10 dark:bg-amber-600/20 border border-amber-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
+            icon={<Pin className="h-4 w-4" />}
+            label="ピン留め"
+            activeColor="amber"
+          />
 
-          <button
+          <NavItem
+            isActive={activeSection === "favorites"}
             onClick={() => {
               setActiveSection("favorites");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "favorites"
-                ? "text-rose-500 dark:text-rose-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Heart className="h-4 w-4" />
-              お気に入り
-            </span>
-            {activeSection === "favorites" && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-rose-600/10 dark:bg-rose-600/20 border border-rose-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
+            icon={<Heart className="h-4 w-4" />}
+            label="お気に入り"
+            activeColor="rose"
+          />
         </nav>
 
         {/* Bookmarks Split */}
-        <nav className="p-4 space-y-1 border-b border-gray-200 dark:border-gray-800/40 transition-colors duration-200">
+        <nav aria-label="ブックマークナビゲーション" className="p-4 space-y-1 border-b border-gray-200 dark:border-gray-800/40 transition-colors duration-200">
           <div className="flex items-center justify-between px-3 mb-2">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
               ブックマーク
@@ -325,56 +235,27 @@ export function Sidebar({
             </div>
           </div>
 
-          <button
+          <NavItem
+            isActive={activeSection === "bookmarks_content" && selectedCategoryId === null && selectedTagId === null}
             onClick={() => {
               setActiveSection("bookmarks_content");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "bookmarks_content" && selectedCategoryId === null && selectedTagId === null
-                ? "text-indigo-500 dark:text-indigo-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <Bookmark className="h-4 w-4" />
-              コンテンツブックマーク
-            </span>
-            {activeSection === "bookmarks_content" && selectedCategoryId === null && selectedTagId === null && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-indigo-600/10 dark:bg-indigo-600/20 border border-indigo-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
-          <button
+            icon={<Bookmark className="h-4 w-4" />}
+            label="コンテンツブックマーク"
+            activeColor="indigo"
+          />
+
+          <NavItem
+            isActive={activeSection === "bookmarks_resource" && selectedCategoryId === null && selectedTagId === null}
             onClick={() => {
               setActiveSection("bookmarks_resource");
-              setSelectedFeedId(null);
-              setSelectedCategoryId(null);
-              setSelectedTagId(null);
+              clearSubSelections();
             }}
-            className={`relative flex w-full items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors border border-transparent ${
-              activeSection === "bookmarks_resource" && selectedCategoryId === null && selectedTagId === null
-                ? "text-emerald-500 dark:text-emerald-400 font-semibold"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-950 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800/30"
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-2.5">
-              <ExternalLink className="h-4 w-4" />
-              リソースディレクトリ
-            </span>
-            {activeSection === "bookmarks_resource" && selectedCategoryId === null && selectedTagId === null && (
-              <motion.div
-                layoutId="active-nav-indicator"
-                className="absolute inset-0 bg-emerald-600/10 dark:bg-emerald-600/20 border border-emerald-500/20 rounded-lg z-0"
-                transition={springTransition}
-              />
-            )}
-          </button>
+            icon={<ExternalLink className="h-4 w-4" />}
+            label="リソースディレクトリ"
+            activeColor="emerald"
+          />
 
           {/* Bookmark Categories */}
           {categories.filter(c => c.scope === "bookmark").length > 0 && (

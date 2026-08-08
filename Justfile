@@ -170,11 +170,11 @@ fix:
 
 # Sync AI platform configuration (.claude)
 sync-platform:
-    ./ai-platform/scripts/sync-claude.sh
+    ./hamirilo-platform/scripts/sync-claude.sh
 
 # Update AI platform submodule
 update-platform:
-    ./ai-platform/scripts/update-platform.sh
+    ./hamirilo-platform/scripts/update-platform.sh
 
 # Remove Python cache and build artifacts
 clean:
