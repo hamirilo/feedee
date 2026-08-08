@@ -9,6 +9,9 @@ const viteDevUrl = process.env.VITE_DEV_URL || `http://${viteHmrHost}:${viteClie
 export default defineConfig({
   root: resolve(__dirname, "frontend"),
   base: "/static/",
+  css: {
+    postcss: resolve(__dirname, "postcss.config.js"),
+  },
   build: {
     manifest: "manifest.json",
     outDir: resolve(__dirname, "static/dist"),
