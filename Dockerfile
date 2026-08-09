@@ -3,8 +3,13 @@ FROM node:22-slim AS frontend
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json package-lock.json* .npmrc ./
+RUN --mount=type=secret,id=github_token \
+    if [ -f /run/secrets/github_token ]; then \
+      echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/github_token)" >> .npmrc; \
+    fi && \
+    npm ci && \
+    sed -i '/authToken/d' .npmrc
 
 COPY vite.config.js tailwind.config.js postcss.config.js ./
 COPY frontend/ frontend/
