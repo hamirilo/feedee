@@ -683,9 +683,9 @@
         const text = element.innerText || element.textContent;
         
         navigator.clipboard.writeText(text).then(() => {
-            alert('ブックマークレットコードをクリップボードにコピーしました！');
+            console.log('ブックマークレットコードをクリップボードにコピーしました！');
         }).catch(() => {
-            alert('コピーに失敗しました。手動で選択してコピーしてください。');
+            console.error('コピーに失敗しました。手動で選択してコピーしてください。');
         });
     }
     </script>

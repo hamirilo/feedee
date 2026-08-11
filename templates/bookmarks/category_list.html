@@ -114,15 +114,6 @@
 </div>
 
 <script>
-// Confirm dialogs
-document.querySelectorAll('[data-confirm]').forEach(form => {
-    form.addEventListener('submit', e => {
-        const message = form.getAttribute('data-confirm');
-        const isDanger = form.hasAttribute('data-confirm-danger');
-        if (!confirm(message)) {
-            e.preventDefault();
-        }
-    });
-});
+// Confirm handlers (custom modal ready)
 </script>
 {% endblock %}

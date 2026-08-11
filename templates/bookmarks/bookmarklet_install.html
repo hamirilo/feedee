@@ -95,9 +95,9 @@ function copyToClipboard(elementId) {
     const text = element.innerText || element.textContent;
     
     navigator.clipboard.writeText(text).then(() => {
-        alert('Bookmarklet code copied to clipboard!');
+        console.log('Bookmarklet code copied to clipboard!');
     }).catch(() => {
-        alert('Failed to copy. Please try manual selection.');
+        console.error('Failed to copy. Please try manual selection.');
     });
 }
 </script>

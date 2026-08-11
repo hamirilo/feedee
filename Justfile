@@ -175,13 +175,29 @@ fmt:
 fix:
     uv run ruff check --fix . && uv run ruff format .
 
-# Sync AI platform configuration (.claude)
-sync-platform:
-    ./hamirilo-platform/scripts/sync-claude.sh
+# ==============================================================================
+# プラットフォーム管理 (hamirilo-platform)
+# ==============================================================================
 
-# Update AI platform submodule
-update-platform:
-    ./hamirilo-platform/scripts/update-platform.sh
+# hamirilo-platform submodule を最新（または指定タグ）に更新
+[group('プラットフォーム管理')]
+update-platform tag="":
+    ./hamirilo-platform/scripts/update-platform.sh {{tag}}
+
+# hamirilo-platform の AI ルールを同期する
+[group('プラットフォーム管理')]
+sync-ai mode="":
+    ./hamirilo-platform/scripts/sync-claude.sh {{mode}}
+
+# sync-ai のエイリアス
+[group('プラットフォーム管理')]
+sync-platform mode="":
+    ./hamirilo-platform/scripts/sync-claude.sh {{mode}}
+
+# プラットフォーム規約適合性・ドリフトチェック
+[group('プラットフォーム管理')]
+check-compliance level="2":
+    ./hamirilo-platform/scripts/verify-compliance.sh --level {{level}}
 
 # Remove Python cache and build artifacts
 clean:
