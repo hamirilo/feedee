@@ -4,10 +4,10 @@ from .views import (
     ArticleIngestView,
     ArticleUserStateView,
     DisplayModePreferenceView,
+    FeedDiscoverView,
     FeedFetchStatusView,
     FeedListView,
     FeedReorderView,
-    FeedDiscoverView,
 )
 
 urlpatterns = [

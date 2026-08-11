@@ -3,12 +3,10 @@ import ipaddress
 import logging
 import socket
 import xml.etree.ElementTree as ET
-from typing import Optional
 from urllib.parse import parse_qsl, urlencode, urljoin, urlsplit, urlunsplit
 
 import requests
 from bs4 import BeautifulSoup
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +38,7 @@ def normalize_url(url: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path, normalized_query, ""))
 
 
-def generate_article_hash(
-    title: str, normalized_link: str, guid: Optional[str] = None
-) -> str:
+def generate_article_hash(title: str, normalized_link: str, guid: str | None = None) -> str:
     """Always return a SHA-256 hex digest that fits in max_length=64."""
     if guid and guid.strip():
         return hashlib.sha256(guid.strip().encode("utf-8")).hexdigest()
@@ -78,7 +74,7 @@ def _fetch_external_response(
     accept: str = "text/html,application/xhtml+xml",
     allow_non_html: bool = False,
     method: str = "GET",
-) -> Optional[requests.Response]:
+) -> requests.Response | None:
     """Fetch an external URL while preserving the existing SSRF guardrails."""
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https"):
@@ -109,7 +105,7 @@ def _fetch_external_response(
     return resp
 
 
-def _fetch_html_response(url: str, *, timeout: int = 8) -> Optional[requests.Response]:
+def _fetch_html_response(url: str, *, timeout: int = 8) -> requests.Response | None:
     return _fetch_external_response(url, timeout=timeout)
 
 
@@ -191,35 +187,24 @@ def discover_feed_url(url: str) -> dict:
     if _looks_like_feed_response(response):
         return {
             "feed_url": response.url,
-            "title": _extract_feed_title(response.text)
-            or urlsplit(response.url).netloc,
+            "title": _extract_feed_title(response.text) or urlsplit(response.url).netloc,
             "discovered": response.url != cleaned_url,
             "error": "",
             "error_detail": "",
         }
 
     soup = BeautifulSoup(response.text, "html.parser")
-    page_title = (
-        soup.title.string.strip()
-        if soup.title and soup.title.string
-        else urlsplit(cleaned_url).netloc
-    )
+    page_title = soup.title.string.strip() if soup.title and soup.title.string else urlsplit(cleaned_url).netloc
 
     candidates = []
     for link in soup.find_all("link"):
         rel = link.get("rel") or []
-        rel_values = (
-            [str(item).lower() for item in rel]
-            if isinstance(rel, list)
-            else [str(rel).lower()]
-        )
+        rel_values = [str(item).lower() for item in rel] if isinstance(rel, list) else [str(rel).lower()]
         link_type = (link.get("type") or "").lower()
         href = (link.get("href") or "").strip()
         if not href:
             continue
-        if "alternate" in rel_values and (
-            "rss" in link_type or "atom" in link_type or href.endswith(".xml")
-        ):
+        if "alternate" in rel_values and ("rss" in link_type or "atom" in link_type or href.endswith(".xml")):
             candidates.append(urljoin(response.url, href))
 
     base = f"{urlsplit(response.url).scheme}://{urlsplit(response.url).netloc}"
@@ -249,9 +234,7 @@ def discover_feed_url(url: str) -> dict:
             accept="application/rss+xml, application/atom+xml, application/xml, text/xml, text/html",
             allow_non_html=True,
         )
-        if candidate_response is not None and _looks_like_feed_response(
-            candidate_response
-        ):
+        if candidate_response is not None and _looks_like_feed_response(candidate_response):
             return {
                 "feed_url": candidate_response.url,
                 "title": _extract_feed_title(candidate_response.text) or page_title,
@@ -421,9 +404,7 @@ def fetch_url_metadata(url: str) -> dict:
             or (meta_desc["content"] if meta_desc and meta_desc.get("content") else "")
         ).strip()
 
-        result["thumbnail_url"] = (
-            og_image["content"] if og_image and og_image.get("content") else ""
-        ).strip()
+        result["thumbnail_url"] = (og_image["content"] if og_image and og_image.get("content") else "").strip()
 
     except Exception:
         logger.debug("Failed to fetch metadata for %s", url, exc_info=True)

@@ -1,7 +1,8 @@
 import json
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.test import Client, TestCase
 
 User = get_user_model()
 
@@ -11,9 +12,7 @@ class NinjaAPITestCase(TestCase):
         self.client = Client()
         self.username = "testuser"
         self.password = "password123"
-        self.user = User.objects.create_user(
-            username=self.username, password=self.password
-        )
+        self.user = User.objects.create_user(username=self.username, password=self.password)
 
     def test_health_check(self):
         response = self.client.get("/health")
@@ -69,9 +68,7 @@ class NinjaAPITestCase(TestCase):
         # 4. Inbox
         inbox_res = self.client.post(
             "/app/inbox",
-            data=json.dumps(
-                {"url": "https://example.com/article1", "title": "Test Article"}
-            ),
+            data=json.dumps({"url": "https://example.com/article1", "title": "Test Article"}),
             content_type="application/json",
             **auth_headers,
         )

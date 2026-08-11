@@ -1,4 +1,5 @@
 import datetime
+
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -21,9 +22,7 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(data: dict, expires_delta: datetime.timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.datetime.now(datetime.timezone.utc) + (
-        expires_delta or datetime.timedelta(minutes=60 * 24 * 7)
-    )
+    expire = datetime.datetime.now(datetime.UTC) + (expires_delta or datetime.timedelta(minutes=60 * 24 * 7))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

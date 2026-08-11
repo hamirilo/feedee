@@ -1,12 +1,11 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.http import JsonResponse
 from django.urls import include, path
 
+from apps.api.api import api
 from apps.rssapp.forms import EmailLoginForm
 from apps.rssapp.views import register_view
-
-from django.http import JsonResponse
-from apps.api.api import api
 
 
 def health_view(request):
@@ -17,8 +16,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("app/", api.urls),
     path("health", health_view),
-
-
     path(
         "login/",
         auth_views.LoginView.as_view(

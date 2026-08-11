@@ -67,7 +67,9 @@ class IngestArticlePayload(BaseModel):
     published_at: str | None = None  # ISO format string
 
 
-@router.get("/feeds", response_model=list[WorkerFeedResponse], dependencies=[Depends(verify_worker_token)])
+@router.get(
+    "/feeds", response_model=list[WorkerFeedResponse], dependencies=[Depends(verify_worker_token)]
+)
 async def get_worker_feeds(db: Annotated[AsyncSession, Depends(get_db)]):
     result = await db.execute(select(Feed).where(Feed.is_active == True))
     feeds = result.scalars().all()
@@ -172,7 +174,9 @@ async def ingest_articles(
         await db.flush()  # Populates new_article.id
 
         # Find all subscribers to this feed to create unread article states
-        sub_result = await db.execute(select(Subscription.user_id).where(Subscription.feed_id == feed_uuid))
+        sub_result = await db.execute(
+            select(Subscription.user_id).where(Subscription.feed_id == feed_uuid)
+        )
         subscriber_ids = sub_result.scalars().all()
 
         for user_id in subscriber_ids:
@@ -193,4 +197,3 @@ async def ingest_articles(
         "created": created_count,
         "skipped": skipped_count,
     }
-

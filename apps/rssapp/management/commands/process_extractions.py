@@ -9,7 +9,7 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from apps.rssapp.models import ExtractionTask, Article
+from apps.rssapp.models import ExtractionTask
 from apps.rssapp.utils import extract_article_content
 
 logger = logging.getLogger(__name__)
@@ -80,15 +80,10 @@ class Command(BaseCommand):
                     f"Error processing extraction task {task.article_id}",
                     exc_info=True,
                 )
-                self.stdout.write(
-                    self.style.ERROR(f"Task {task.article_id} failed: {e}")
-                )
+                self.stdout.write(self.style.ERROR(f"Task {task.article_id} failed: {e}"))
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Completed: {success_count} success, "
-                f"{failed_count} failed, {skipped_count} skipped"
-            )
+            self.style.SUCCESS(f"Completed: {success_count} success, {failed_count} failed, {skipped_count} skipped")
         )
 
     def _process_task(self, task: ExtractionTask):
@@ -100,11 +95,7 @@ class Command(BaseCommand):
             task.status = "skipped"
             task.completed_at = timezone.now()
             task.save(update_fields=["status", "completed_at"])
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Article {article.id} already has content, skipping"
-                )
-            )
+            self.stdout.write(self.style.WARNING(f"Article {article.id} already has content, skipping"))
             return
 
         # Mark as processing
@@ -137,17 +128,11 @@ class Command(BaseCommand):
             )
 
             # Mark task as complete
-            task.status = (
-                extraction_status if extraction_status == "success" else "success"
-            )
+            task.status = extraction_status if extraction_status == "success" else "success"
             task.completed_at = timezone.now()
             task.save(update_fields=["status", "completed_at"])
 
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f"Extracted article {article.id} ({extraction_status})"
-                )
-            )
+            self.stdout.write(self.style.SUCCESS(f"Extracted article {article.id} ({extraction_status})"))
 
         except Exception as e:
             # Handle extraction failure
@@ -166,8 +151,5 @@ class Command(BaseCommand):
             article.save(update_fields=["extraction_status"])
 
             self.stdout.write(
-                self.style.ERROR(
-                    f"Failed extracting article {article.id} "
-                    f"({task.retry_count}/{task.max_retries}): {e}"
-                )
+                self.style.ERROR(f"Failed extracting article {article.id} ({task.retry_count}/{task.max_retries}): {e}")
             )

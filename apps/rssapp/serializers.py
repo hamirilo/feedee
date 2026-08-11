@@ -39,14 +39,10 @@ class ArticleIngestSerializer(serializers.Serializer):
     )
     title = serializers.CharField(max_length=500)
     link = serializers.URLField(max_length=2048)
-    guid = serializers.CharField(
-        max_length=500, allow_blank=True, allow_null=True, required=False
-    )
+    guid = serializers.CharField(max_length=500, allow_blank=True, allow_null=True, required=False)
     summary = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     content = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    image_url = serializers.URLField(
-        max_length=2048, required=False, allow_blank=True, allow_null=True
-    )
+    image_url = serializers.URLField(max_length=2048, required=False, allow_blank=True, allow_null=True)
     published_at = serializers.DateTimeField(required=False, allow_null=True)
 
 
@@ -64,9 +60,7 @@ class FeedFetchStatusSerializer(serializers.Serializer):
     http_status = serializers.IntegerField(required=False, min_value=100, max_value=599)
     error = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     etag = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    last_modified = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True
-    )
+    last_modified = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     item_count = serializers.IntegerField(required=False, min_value=0, default=0)
 
 
@@ -111,6 +105,4 @@ class BookmarkletCreateSerializer(serializers.Serializer):
 
 
 class DisplayModePreferenceSerializer(serializers.Serializer):
-    mode = serializers.ChoiceField(
-        choices=[choice[0] for choice in UserProfile.DISPLAY_MODE_CHOICES]
-    )
+    mode = serializers.ChoiceField(choices=[choice[0] for choice in UserProfile.DISPLAY_MODE_CHOICES])

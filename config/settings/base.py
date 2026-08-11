@@ -1,6 +1,6 @@
+import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
-import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -104,9 +104,7 @@ else:
     }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -153,9 +151,11 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/login/"
-FULL_TEXT_EXTRACTION_ENABLED = os.environ.get(
-    "FULL_TEXT_EXTRACTION_ENABLED", "true"
-).lower() not in ("0", "false", "no")
+FULL_TEXT_EXTRACTION_ENABLED = os.environ.get("FULL_TEXT_EXTRACTION_ENABLED", "true").lower() not in (
+    "0",
+    "false",
+    "no",
+)
 try:
     FULL_TEXT_EXTRACTION_SYNC_LIMIT = max(
         int(os.environ.get("FULL_TEXT_EXTRACTION_SYNC_LIMIT", "1")),
@@ -166,12 +166,8 @@ except ValueError:
 
 # Async extraction task queue settings
 EXTRACTION_TASK_MAX_RETRIES = int(os.environ.get("EXTRACTION_TASK_MAX_RETRIES", "3"))
-EXTRACTION_TASK_TIMEOUT_SECONDS = int(
-    os.environ.get("EXTRACTION_TASK_TIMEOUT_SECONDS", "30")
-)
-EXTRACTION_TASK_PROCESSING_BATCH_SIZE = int(
-    os.environ.get("EXTRACTION_TASK_PROCESSING_BATCH_SIZE", "10")
-)
+EXTRACTION_TASK_TIMEOUT_SECONDS = int(os.environ.get("EXTRACTION_TASK_TIMEOUT_SECONDS", "30"))
+EXTRACTION_TASK_PROCESSING_BATCH_SIZE = int(os.environ.get("EXTRACTION_TASK_PROCESSING_BATCH_SIZE", "10"))
 
 LOGGING = {
     "version": 1,

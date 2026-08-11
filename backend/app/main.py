@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
     try:
         from alembic import command
         from alembic.config import Config
+
         logger.info("Running alembic migrations programmatically...")
         alembic_cfg = Config("alembic.ini")
         alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
@@ -58,6 +59,7 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as session:
         try:
             from app.migrate import run_migration
+
             await run_migration(session)
         except Exception as e:
             logger.error(f"Error during SQLite to Postgres migration: {e}")
@@ -94,4 +96,3 @@ app.include_router(bookmarks.router, prefix="/app")
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
-

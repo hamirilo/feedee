@@ -41,7 +41,7 @@ class Settings(BaseSettings):
             # Clean leading/trailing single or double quotes
             if (v.startswith("'") and v.endswith("'")) or (v.startswith('"') and v.endswith('"')):
                 v = v[1:-1].strip()
-            
+
             # Check if it looks like a JSON array
             if v.startswith("[") and v.endswith("]"):
                 try:
@@ -49,11 +49,10 @@ class Settings(BaseSettings):
                 except json.JSONDecodeError:
                     # Strip brackets and try treating it as comma-separated
                     v = v[1:-1]
-            
+
             # Handle comma-separated list
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
 
 settings = Settings()
-

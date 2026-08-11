@@ -14,9 +14,11 @@ api = NinjaAPI(
     urls_namespace="api_v2",
 )
 
+
 @api.get("/health", auth=None)
 def health(request):
     return {"status": "ok"}
+
 
 api.add_router("/auth", auth_router)
 api.add_router("/worker", worker_router)

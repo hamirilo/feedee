@@ -12,13 +12,9 @@ class Article(Base, TimestampMixin):
     """RSSフィードから取得した記事。フィード単位で管理。"""
 
     __tablename__ = "articles"
-    __table_args__ = (
-        UniqueConstraint("feed_id", "url_hash", name="uq_article_feed_url_hash"),
-    )
+    __table_args__ = (UniqueConstraint("feed_id", "url_hash", name="uq_article_feed_url_hash"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     feed_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("feeds.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -53,13 +49,9 @@ class ArticleUserState(Base, TimestampMixin):
     """ユーザーごとの記事状態（既読・お気に入り）。"""
 
     __tablename__ = "article_user_states"
-    __table_args__ = (
-        UniqueConstraint("user_id", "article_id", name="uq_article_user_state"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "article_id", name="uq_article_user_state"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )

@@ -5,6 +5,7 @@ Revises:
 Create Date: 2026-07-02 00:00:00.000000
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -115,7 +116,6 @@ def upgrade() -> None:
         sa.Column("fetch_error", sa.Text, nullable=True),
         sa.Column("etag", sa.String(255), nullable=True),
         sa.Column("last_modified", sa.String(255), nullable=True),
-
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

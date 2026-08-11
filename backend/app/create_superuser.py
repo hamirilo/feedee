@@ -16,17 +16,17 @@ async def main():
         if not username:
             print("Error: Username is required.")
             sys.exit(1)
-            
+
         email = input("Email address: ").strip()
         if not email:
             print("Error: Email is required.")
             sys.exit(1)
-            
+
         password = getpass.getpass("Password: ")
         if not password:
             print("Error: Password is required.")
             sys.exit(1)
-            
+
         password_confirm = getpass.getpass("Password (again): ")
         if password != password_confirm:
             print("Error: Passwords do not match.")
@@ -34,7 +34,7 @@ async def main():
     except KeyboardInterrupt:
         print("\nAborted.")
         sys.exit(1)
-        
+
     async with AsyncSessionLocal() as session:
         # Check if username or email already exists
         result = await session.execute(
@@ -44,17 +44,18 @@ async def main():
         if existing_user:
             print("Error: A user with this username or email already exists.")
             sys.exit(1)
-            
+
         new_user = User(
             username=username,
             email=email,
             hashed_password=get_password_hash(password),
             is_active=True,
-            is_superuser=True
+            is_superuser=True,
         )
         session.add(new_user)
         await session.commit()
         print(f"Superuser '{username}' created successfully.")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -271,9 +271,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         user = User.objects.first()
         if not user:
-            self.stderr.write(
-                "ユーザーが存在しません。先にcreatesuperuserを実行してください。"
-            )
+            self.stderr.write("ユーザーが存在しません。先にcreatesuperuserを実行してください。")
             return
 
         now = timezone.now()

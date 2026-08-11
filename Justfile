@@ -160,6 +160,13 @@ test:
 lint:
     uv run ruff check .
 
+# Run all code quality checks (ruff + biome + typos)
+check:
+    uv run ruff check .
+    uv run ruff format --check .
+    bun run biome check .
+    uvx typos
+
 # Format code (ruff)
 fmt:
     uv run ruff format .

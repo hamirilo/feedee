@@ -10,8 +10,8 @@ from apps.rssapp.views import (
     bookmark_from_article_view,
     bookmark_list_view,
     bookmark_state_toggle_view,
-    bookmarklet_view,
     bookmarklet_post_view,
+    bookmarklet_view,
     bookmarks_page_view,
     tag_update_view,
 )

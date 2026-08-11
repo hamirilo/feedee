@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import subprocess
@@ -25,8 +24,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .forms import (
-    BookmarkForm,
     BookmarkCategoryForm,
+    BookmarkForm,
     FeedCreateForm,
     FeedUpdateForm,
     SignUpForm,
@@ -38,8 +37,8 @@ from .models import (
     Article,
     ArticleUserState,
     Bookmark,
-    BookmarkUserState,
     BookmarkCategory,
+    BookmarkUserState,
     Feed,
     Tag,
     UserProfile,
@@ -109,10 +108,7 @@ class FeedReorderView(APIView):
         existing_ids = set(Feed.objects.values_list("id", flat=True))
         requested_ids = list(dict.fromkeys(feed_ids))
 
-        if (
-            len(requested_ids) != len(existing_ids)
-            or set(requested_ids) != existing_ids
-        ):
+        if len(requested_ids) != len(existing_ids) or set(requested_ids) != existing_ids:
             return Response(
                 {
                     "ok": False,
@@ -226,9 +222,7 @@ class ArticleIngestView(APIView):
             0,
         )
         extraction_enabled = getattr(settings, "FULL_TEXT_EXTRACTION_ENABLED", True)
-        allow_inline_extraction = (
-            extraction_enabled and batch_size <= sync_extraction_limit
-        )
+        allow_inline_extraction = extraction_enabled and batch_size <= sync_extraction_limit
 
         if extraction_enabled and batch_size > sync_extraction_limit:
             logger.info(
@@ -292,11 +286,7 @@ class ArticleIngestView(APIView):
                     skipped_count += 1
 
                 # Queue extraction if content is missing and extraction is enabled
-                if (
-                    extraction_enabled
-                    and not content
-                    and extraction_status == "pending"
-                ):
+                if extraction_enabled and not content and extraction_status == "pending":
                     from apps.rssapp.models import ExtractionTask
 
                     ExtractionTask.objects.get_or_create(
@@ -324,9 +314,7 @@ class ArticleUserStateView(APIView):
 
     def get(self, request, article_id):
         article = get_object_or_404(Article, id=article_id)
-        state = ArticleUserState.objects.filter(
-            user=request.user, article=article
-        ).first()
+        state = ArticleUserState.objects.filter(user=request.user, article=article).first()
         if not state:
             return Response(
                 {
@@ -343,9 +331,7 @@ class ArticleUserStateView(APIView):
 
     def patch(self, request, article_id):
         article = get_object_or_404(Article, id=article_id)
-        state, _ = ArticleUserState.objects.get_or_create(
-            user=request.user, article=article
-        )
+        state, _ = ArticleUserState.objects.get_or_create(user=request.user, article=article)
         serializer = ArticleUserStateSerializer(state, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -357,9 +343,7 @@ class DisplayModePreferenceView(APIView):
 
     def get(self, request):
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        return Response(
-            {"mode": profile.default_display_mode}, status=status.HTTP_200_OK
-        )
+        return Response({"mode": profile.default_display_mode}, status=status.HTTP_200_OK)
 
     def patch(self, request):
         serializer = DisplayModePreferenceSerializer(data=request.data)
@@ -367,9 +351,7 @@ class DisplayModePreferenceView(APIView):
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         profile.default_display_mode = serializer.validated_data["mode"]
         profile.save(update_fields=["default_display_mode"])
-        return Response(
-            {"mode": profile.default_display_mode}, status=status.HTTP_200_OK
-        )
+        return Response({"mode": profile.default_display_mode}, status=status.HTTP_200_OK)
 
 
 def _category_label(value):
@@ -449,17 +431,13 @@ def _iter_opml_feed_entries(node, inherited_category=""):
     xml_url = (node.attrib.get("xmlUrl") or node.attrib.get("xmlurl") or "").strip()
     if xml_url:
         yield {
-            "name": (
-                node.attrib.get("title") or node.attrib.get("text") or xml_url
-            ).strip(),
+            "name": (node.attrib.get("title") or node.attrib.get("text") or xml_url).strip(),
             "url": xml_url,
             "category": inherited_category.strip(),
         }
         return
 
-    current_category = (
-        node.attrib.get("title") or node.attrib.get("text") or inherited_category
-    )
+    current_category = node.attrib.get("title") or node.attrib.get("text") or inherited_category
     for child in node.findall("outline"):
         yield from _iter_opml_feed_entries(child, current_category)
 
@@ -489,16 +467,10 @@ def import_opml_view(request):
         messages.error(request, "The uploaded OPML file could not be parsed.")
         return redirect("settings-feeds")
 
-    existing_urls = {
-        normalize_url(url): url for url in Feed.objects.values_list("url", flat=True)
-    }
+    existing_urls = {normalize_url(url): url for url in Feed.objects.values_list("url", flat=True)}
     imported = 0
     skipped = 0
-    next_order = (
-        Feed.objects.order_by("-display_order").first().display_order
-        if Feed.objects.exists()
-        else 0
-    )
+    next_order = Feed.objects.order_by("-display_order").first().display_order if Feed.objects.exists() else 0
 
     for outline in root.findall("./body/outline"):
         for entry in _iter_opml_feed_entries(outline):
@@ -540,9 +512,7 @@ def register_view(request):
             login(request, user, backend="apps.rssapp.backends.EmailBackend")
             messages.success(request, "Account created. Welcome to Feedee.")
 
-            if next_url and url_has_allowed_host_and_scheme(
-                next_url, allowed_hosts={request.get_host()}
-            ):
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                 return redirect(next_url)
             return redirect("homepage")
     else:
@@ -578,9 +548,7 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
     articles_qs = base_qs
     if query:
         articles_qs = articles_qs.filter(
-            Q(title__icontains=query)
-            | Q(summary__icontains=query)
-            | Q(content__icontains=query)
+            Q(title__icontains=query) | Q(summary__icontains=query) | Q(content__icontains=query)
         )
 
     all_count = base_qs.count()
@@ -589,35 +557,25 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
     read_count = 0
 
     if request.user.is_authenticated:
-        user_states = ArticleUserState.objects.filter(
-            user=request.user, article__in=base_qs
-        )
+        user_states = ArticleUserState.objects.filter(user=request.user, article__in=base_qs)
         read_later_count = user_states.filter(is_read_later=True).count()
         read_count = user_states.filter(is_read=True).count()
 
         if state_filter == "read-later":
-            articles_qs = articles_qs.filter(
-                user_states__user=request.user, user_states__is_read_later=True
-            )
+            articles_qs = articles_qs.filter(user_states__user=request.user, user_states__is_read_later=True)
         elif state_filter == "unread":
-            articles_qs = articles_qs.exclude(
-                user_states__user=request.user, user_states__is_read=True
-            )
+            articles_qs = articles_qs.exclude(user_states__user=request.user, user_states__is_read=True)
 
         unread_count = (
             articles_qs.count()
             if state_filter == "unread"
-            else base_qs.exclude(
-                user_states__user=request.user, user_states__is_read=True
-            ).count()
+            else base_qs.exclude(user_states__user=request.user, user_states__is_read=True).count()
         )
     elif state_filter == "read-later":
         articles_qs = articles_qs.none()
 
     if sort_mode == "smart" and request.user.is_authenticated:
-        state_base = ArticleUserState.objects.filter(
-            user=request.user, article=OuterRef("pk")
-        )
+        state_base = ArticleUserState.objects.filter(user=request.user, article=OuterRef("pk"))
         articles_qs = (
             articles_qs.annotate(
                 state_is_read=Exists(state_base.filter(is_read=True)),
@@ -656,16 +614,11 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
     saved_article_urls = set()
     if request.user.is_authenticated and article_ids:
         state_by_article_id = {
-            s.article_id: s
-            for s in ArticleUserState.objects.filter(
-                user=request.user, article_id__in=article_ids
-            )
+            s.article_id: s for s in ArticleUserState.objects.filter(user=request.user, article_id__in=article_ids)
         }
         article_links = [a.link for a in page_obj.object_list]
         saved_article_urls = set(
-            Bookmark.objects.filter(
-                user=request.user, url__in=article_links
-            ).values_list("url", flat=True)
+            Bookmark.objects.filter(user=request.user, url__in=article_links).values_list("url", flat=True)
         )
 
     if feed_name_fn is None:
@@ -797,11 +750,7 @@ def settings_view(request, tab="feeds"):
             form = FeedCreateForm(request.POST)
             if form.is_valid():
                 new_feed = form.save(commit=False)
-                max_order = (
-                    Feed.objects.order_by("-display_order")
-                    .values_list("display_order", flat=True)
-                    .first()
-                )
+                max_order = Feed.objects.order_by("-display_order").values_list("display_order", flat=True).first()
                 new_feed.display_order = (max_order or 0) + 1
                 # Set next_fetch_at to now so RSS worker fetches it immediately
                 new_feed.next_fetch_at = timezone.now()
@@ -820,18 +769,14 @@ def settings_view(request, tab="feeds"):
                 return redirect("settings-feeds")
             else:
                 # Log discovery errors for debugging
-                if hasattr(form, 'discovery_error') and form.discovery_error:
+                if hasattr(form, "discovery_error") and form.discovery_error:
                     logger.warning(
                         f"Feed discovery failed: {form.discovery_error} - URL: {request.POST.get('url', 'N/A')}"
                     )
         else:
             form = FeedCreateForm()
 
-        feeds = (
-            Feed.objects.all()
-            .annotate(article_count=Count("articles"))
-            .order_by("display_order", "id")
-        )
+        feeds = Feed.objects.all().annotate(article_count=Count("articles")).order_by("display_order", "id")
         feed_rows = [
             {
                 "feed": feed,
@@ -893,13 +838,8 @@ def settings_view(request, tab="feeds"):
         else:
             form = TagForm()
 
-        tags = Tag.objects.filter(user=request.user).annotate(
-            bookmark_count=Count("bookmarks")
-        )
-        tag_rows = [
-            {"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")}
-            for tag in tags
-        ]
+        tags = Tag.objects.filter(user=request.user).annotate(bookmark_count=Count("bookmarks"))
+        tag_rows = [{"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")} for tag in tags]
         context.update({"tag_form": form, "tags": tags, "tag_rows": tag_rows})
 
     # ── Account Tab ────────────────────────────────────
@@ -966,11 +906,7 @@ def rss_settings_view(request):
         if form.is_valid():
             try:
                 new_feed = form.save(commit=False)
-                max_order = (
-                    Feed.objects.order_by("-display_order")
-                    .values_list("display_order", flat=True)
-                    .first()
-                )
+                max_order = Feed.objects.order_by("-display_order").values_list("display_order", flat=True).first()
                 new_feed.display_order = (max_order or 0) + 1
                 new_feed.save()
                 run_rss_worker()
@@ -993,18 +929,12 @@ def rss_settings_view(request):
                     messages.error(request, error)
 
             # Log discovery errors for debugging
-            if hasattr(form, 'discovery_error') and form.discovery_error:
-                logger.warning(
-                    f"Feed discovery failed: {form.discovery_error} - URL: {request.POST.get('url', 'N/A')}"
-                )
+            if hasattr(form, "discovery_error") and form.discovery_error:
+                logger.warning(f"Feed discovery failed: {form.discovery_error} - URL: {request.POST.get('url', 'N/A')}")
     else:
         form = FeedCreateForm()
 
-    feeds = (
-        Feed.objects.all()
-        .annotate(article_count=Count("articles"))
-        .order_by("display_order", "id")
-    )
+    feeds = Feed.objects.all().annotate(article_count=Count("articles")).order_by("display_order", "id")
     feed_rows = [
         {
             "feed": feed,
@@ -1072,13 +1002,8 @@ def bookmark_settings_view(request, tab="categories"):
         else:
             form = TagForm()
 
-        tags = Tag.objects.filter(user=request.user).annotate(
-            bookmark_count=Count("bookmarks")
-        )
-        tag_rows = [
-            {"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")}
-            for tag in tags
-        ]
+        tags = Tag.objects.filter(user=request.user).annotate(bookmark_count=Count("bookmarks"))
+        tag_rows = [{"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")} for tag in tags]
         context.update({"tag_form": form, "tags": tags, "tag_rows": tag_rows})
 
     return render(request, "rss/settings_bookmarks.html", context)
@@ -1124,14 +1049,10 @@ def reader_view(request, article_id):
     article = get_object_or_404(Article.objects.select_related("feed"), id=article_id)
     state = None
     if request.user.is_authenticated:
-        state = ArticleUserState.objects.filter(
-            user=request.user, article=article
-        ).first()
+        state = ArticleUserState.objects.filter(user=request.user, article=article).first()
         # Auto-mark as read
         if not state:
-            state = ArticleUserState.objects.create(
-                user=request.user, article=article, is_read=True
-            )
+            state = ArticleUserState.objects.create(user=request.user, article=article, is_read=True)
         elif not state.is_read:
             state.is_read = True
             state.save(update_fields=["is_read", "updated_at"])
@@ -1145,8 +1066,7 @@ def reader_view(request, article_id):
             # Newer article (prev): published later, or same time but higher id
             prev_article = (
                 qs.filter(
-                    Q(published_at__gt=article.published_at)
-                    | Q(published_at=article.published_at, id__gt=article.id)
+                    Q(published_at__gt=article.published_at) | Q(published_at=article.published_at, id__gt=article.id)
                 )
                 .order_by("published_at", "id")
                 .values("id")
@@ -1155,8 +1075,7 @@ def reader_view(request, article_id):
             # Older article (next): published earlier, or same time but lower id
             next_article = (
                 qs.filter(
-                    Q(published_at__lt=article.published_at)
-                    | Q(published_at=article.published_at, id__lt=article.id)
+                    Q(published_at__lt=article.published_at) | Q(published_at=article.published_at, id__lt=article.id)
                 )
                 .order_by("-published_at", "-id")
                 .values("id")
@@ -1164,12 +1083,8 @@ def reader_view(request, article_id):
             )
         else:
             # Fallback to id-based ordering when published_at is not set
-            prev_article = (
-                qs.filter(id__gt=article.id).order_by("id").values("id").first()
-            )
-            next_article = (
-                qs.filter(id__lt=article.id).order_by("-id").values("id").first()
-            )
+            prev_article = qs.filter(id__gt=article.id).order_by("id").values("id").first()
+            next_article = qs.filter(id__lt=article.id).order_by("-id").values("id").first()
 
     return render(
         request,
@@ -1189,9 +1104,7 @@ def reader_view(request, article_id):
 def feed_articles_view(request, feed_id):
     feed = get_object_or_404(Feed, id=feed_id)
     base_qs = Article.objects.filter(feed=feed)
-    context = _build_article_list_context(
-        request, base_qs, feed_name_fn=lambda a: feed.name
-    )
+    context = _build_article_list_context(request, base_qs, feed_name_fn=lambda a: feed.name)
     context.update(
         {
             "feed": feed,
@@ -1237,9 +1150,7 @@ def article_state_toggle_view(request, article_id, state_field):
         return redirect(redirect_url)
 
     article = get_object_or_404(Article, id=article_id)
-    state, _ = ArticleUserState.objects.get_or_create(
-        user=request.user, article=article
-    )
+    state, _ = ArticleUserState.objects.get_or_create(user=request.user, article=article)
     current_value = getattr(state, state_field)
     setattr(state, state_field, not current_value)
     state.save(update_fields=[state_field, "updated_at"])
@@ -1266,9 +1177,7 @@ def bookmark_state_toggle_view(request, bookmark_id, state_field):
         return redirect(redirect_url)
 
     bookmark = get_object_or_404(Bookmark, id=bookmark_id, user=request.user)
-    state, _ = BookmarkUserState.objects.get_or_create(
-        user=request.user, bookmark=bookmark
-    )
+    state, _ = BookmarkUserState.objects.get_or_create(user=request.user, bookmark=bookmark)
     current_value = getattr(state, state_field)
     setattr(state, state_field, not current_value)
     state.save(update_fields=[state_field, "updated_at"])
@@ -1307,9 +1216,7 @@ def mark_all_read_view(request):
         redirect_params["q"] = query
 
     if state_filter == "unread":
-        articles_qs = articles_qs.exclude(
-            user_states__user=request.user, user_states__is_read=True
-        )
+        articles_qs = articles_qs.exclude(user_states__user=request.user, user_states__is_read=True)
         redirect_params["state"] = state_filter
 
     if mode in DISPLAY_MODES:
@@ -1318,13 +1225,11 @@ def mark_all_read_view(request):
     with transaction.atomic():
         article_ids = list(articles_qs.values_list("id", flat=True))
         existing_ids = set(
-            ArticleUserState.objects.filter(
-                user=request.user, article_id__in=article_ids
-            ).values_list("article_id", flat=True)
+            ArticleUserState.objects.filter(user=request.user, article_id__in=article_ids).values_list(
+                "article_id", flat=True
+            )
         )
-        ArticleUserState.objects.filter(
-            user=request.user, article_id__in=existing_ids
-        ).update(is_read=True)
+        ArticleUserState.objects.filter(user=request.user, article_id__in=existing_ids).update(is_read=True)
         new_states = [
             ArticleUserState(user=request.user, article_id=aid, is_read=True)
             for aid in article_ids
@@ -1370,7 +1275,7 @@ class BookmarkletCreateView(APIView):
 
     def post(self, request):
         from .serializers import BookmarkletCreateSerializer
-        from .utils import normalize_url, generate_bookmark_hash
+        from .utils import generate_bookmark_hash, normalize_url
 
         user = request.user
         serializer = BookmarkletCreateSerializer(data=request.data)
@@ -1504,9 +1409,9 @@ def bookmarklet_post_view(request):
     description = request.GET.get("description", "").strip() or request.POST.get("description", "").strip()
 
     bookmark_form = BookmarkForm(initial={"url": url, "title": title, "description": description})
-    bookmark_form.fields["category"].queryset = BookmarkCategory.objects.filter(
-        user=request.user
-    ).order_by("display_order")
+    bookmark_form.fields["category"].queryset = BookmarkCategory.objects.filter(user=request.user).order_by(
+        "display_order"
+    )
     bookmark_form.fields["category"].empty_label = "Uncategorized"
 
     feed_form = FeedCreateForm(initial={"url": url, "name": title})
@@ -1515,9 +1420,9 @@ def bookmarklet_post_view(request):
         action = request.POST.get("action", "")
         if action == "bookmark":
             form = BookmarkForm(request.POST)
-            form.fields["category"].queryset = BookmarkCategory.objects.filter(
-                user=request.user
-            ).order_by("display_order")
+            form.fields["category"].queryset = BookmarkCategory.objects.filter(user=request.user).order_by(
+                "display_order"
+            )
             form.fields["category"].empty_label = "Uncategorized"
 
             if form.is_valid():
@@ -1528,10 +1433,14 @@ def bookmarklet_post_view(request):
                     bookmark.save()
                     tag_names_str = form.cleaned_data.get("tag_names", "")
                     _save_bookmark_tags(bookmark, tag_names_str, request.user)
-                    return render(request, "bookmarks/bookmarklet_success.html", {
-                        "type": "bookmark",
-                        "title": bookmark.title,
-                    })
+                    return render(
+                        request,
+                        "bookmarks/bookmarklet_success.html",
+                        {
+                            "type": "bookmark",
+                            "title": bookmark.title,
+                        },
+                    )
                 except IntegrityError:
                     form.add_error("url", "This URL is already bookmarked.")
             bookmark_form = form
@@ -1540,27 +1449,25 @@ def bookmarklet_post_view(request):
             if form.is_valid():
                 try:
                     new_feed = form.save(commit=False)
-                    max_order = (
-                        Feed.objects.order_by("-display_order")
-                        .values_list("display_order", flat=True)
-                        .first()
-                    )
+                    max_order = Feed.objects.order_by("-display_order").values_list("display_order", flat=True).first()
                     new_feed.display_order = (max_order or 0) + 1
                     new_feed.save()
                     run_rss_worker()
-                    return render(request, "bookmarks/bookmarklet_success.html", {
-                        "type": "feed",
-                        "title": new_feed.name,
-                    })
+                    return render(
+                        request,
+                        "bookmarks/bookmarklet_success.html",
+                        {
+                            "type": "feed",
+                            "title": new_feed.name,
+                        },
+                    )
                 except IntegrityError:
                     form.add_error("url", "This feed URL is already subscribed.")
             feed_form = form
 
     existing_tags = Tag.objects.filter(user=request.user).order_by("name")
-    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by(
-        "display_order"
-    )
-    
+    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
+
     feed_categories = Feed.objects.values_list("category", flat=True).distinct()
     feed_categories = [c for c in feed_categories if c]
 
@@ -1579,6 +1486,7 @@ def bookmarklet_post_view(request):
 
 class FeedDiscoverView(APIView):
     """Endpoint for asynchronous feed discovery."""
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -1586,6 +1494,7 @@ class FeedDiscoverView(APIView):
         if not url:
             return Response({"error": "URL parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
         from .utils import discover_feed_url
+
         result = discover_feed_url(url)
         return Response(result)
 
@@ -1602,9 +1511,7 @@ def bookmark_list_view(request):
     bookmarks_qs = Bookmark.objects.filter(user=request.user).prefetch_related("tags")
     if query:
         bookmarks_qs = bookmarks_qs.filter(
-            Q(title__icontains=query)
-            | Q(description__icontains=query)
-            | Q(url__icontains=query)
+            Q(title__icontains=query) | Q(description__icontains=query) | Q(url__icontains=query)
         )
     if tag_slug:
         bookmarks_qs = bookmarks_qs.filter(tags__slug=tag_slug)
@@ -1615,9 +1522,7 @@ def bookmark_list_view(request):
         except (ValueError, TypeError):
             pass
 
-    tags = Tag.objects.filter(user=request.user).annotate(
-        bookmark_count=Count("bookmarks")
-    )
+    tags = Tag.objects.filter(user=request.user).annotate(bookmark_count=Count("bookmarks"))
     categories = (
         BookmarkCategory.objects.filter(user=request.user)
         .annotate(bookmark_count=Count("bookmarks"))
@@ -1631,10 +1536,7 @@ def bookmark_list_view(request):
     state_by_bookmark_id = {}
     if bookmark_ids:
         state_by_bookmark_id = {
-            s.bookmark_id: s
-            for s in BookmarkUserState.objects.filter(
-                user=request.user, bookmark_id__in=bookmark_ids
-            )
+            s.bookmark_id: s for s in BookmarkUserState.objects.filter(user=request.user, bookmark_id__in=bookmark_ids)
         }
 
     bookmark_cards = []
@@ -1655,7 +1557,6 @@ def bookmark_list_view(request):
                 "category": bm.category,
                 "created_at": bm.created_at,
                 "is_pinned": state.is_pinned if state else False,
-                "is_favorite": state.is_favorite if state else False,
                 "is_favorite": state.is_favorite if state else False,
                 "is_read_later": state.is_read_later if state else False,
                 "is_read": state.is_read if state else False,
@@ -1687,18 +1588,14 @@ def _save_bookmark_tags(bookmark, tag_names_str, user):
         from django.utils.text import slugify
 
         slug = slugify(name, allow_unicode=True)
-        tag, _ = Tag.objects.get_or_create(
-            user=user, slug=slug, defaults={"name": name}
-        )
+        tag, _ = Tag.objects.get_or_create(user=user, slug=slug, defaults={"name": name})
         tags.append(tag)
     bookmark.tags.set(tags)
 
 
 @login_required
 def bookmark_add_view(request):
-    next_url = (
-        request.POST.get("next", "").strip() or request.GET.get("next", "").strip()
-    )
+    next_url = request.POST.get("next", "").strip() or request.GET.get("next", "").strip()
 
     if request.method == "POST":
         form = BookmarkForm(request.POST)
@@ -1709,13 +1606,9 @@ def bookmark_add_view(request):
             bookmark.thumbnail_url = request.POST.get("thumbnail_url", "")
             try:
                 bookmark.save()
-                _save_bookmark_tags(
-                    bookmark, form.cleaned_data.get("tag_names", ""), request.user
-                )
+                _save_bookmark_tags(bookmark, form.cleaned_data.get("tag_names", ""), request.user)
                 messages.success(request, "Bookmark added.")
-                if next_url and url_has_allowed_host_and_scheme(
-                    next_url, allowed_hosts={request.get_host()}
-                ):
+                if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                     return redirect(next_url)
                 return redirect("bookmarks-page")
             except IntegrityError:
@@ -1724,23 +1617,17 @@ def bookmark_add_view(request):
         initial = {}
         preset_category_id = request.GET.get("category", "").strip()
         if preset_category_id:
-            category = BookmarkCategory.objects.filter(
-                user=request.user, id=preset_category_id
-            ).first()
+            category = BookmarkCategory.objects.filter(user=request.user, id=preset_category_id).first()
             if category:
                 initial["category"] = category
         form = BookmarkForm(initial=initial)
 
     # Restrict category queryset to user's categories
-    form.fields["category"].queryset = BookmarkCategory.objects.filter(
-        user=request.user
-    ).order_by("display_order")
+    form.fields["category"].queryset = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
     form.fields["category"].empty_label = "Uncategorized"
 
     existing_tags = Tag.objects.filter(user=request.user).order_by("name")
-    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by(
-        "display_order"
-    )
+    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
     return render(
         request,
         "bookmarks/bookmark_form.html",
@@ -1758,9 +1645,7 @@ def bookmark_add_view(request):
 @login_required
 def bookmark_edit_view(request, bookmark_id):
     bookmark = get_object_or_404(Bookmark, id=bookmark_id, user=request.user)
-    next_url = (
-        request.POST.get("next", "").strip() or request.GET.get("next", "").strip()
-    )
+    next_url = request.POST.get("next", "").strip() or request.GET.get("next", "").strip()
 
     if request.method == "POST":
         form = BookmarkForm(request.POST, instance=bookmark)
@@ -1768,13 +1653,9 @@ def bookmark_edit_view(request, bookmark_id):
             bm = form.save(commit=False)
             bm.thumbnail_url = request.POST.get("thumbnail_url", bookmark.thumbnail_url)
             bm.save()
-            _save_bookmark_tags(
-                bm, form.cleaned_data.get("tag_names", ""), request.user
-            )
+            _save_bookmark_tags(bm, form.cleaned_data.get("tag_names", ""), request.user)
             messages.success(request, "Bookmark updated.")
-            if next_url and url_has_allowed_host_and_scheme(
-                next_url, allowed_hosts={request.get_host()}
-            ):
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                 return redirect(next_url)
             return redirect("bookmarks-page")
     else:
@@ -1782,15 +1663,11 @@ def bookmark_edit_view(request, bookmark_id):
         form = BookmarkForm(instance=bookmark, initial={"tag_names": tag_names})
 
     # Restrict category queryset to user's categories
-    form.fields["category"].queryset = BookmarkCategory.objects.filter(
-        user=request.user
-    ).order_by("display_order")
+    form.fields["category"].queryset = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
     form.fields["category"].empty_label = "Uncategorized"
 
     existing_tags = Tag.objects.filter(user=request.user).order_by("name")
-    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by(
-        "display_order"
-    )
+    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
     return render(
         request,
         "bookmarks/bookmark_form.html",
@@ -1815,9 +1692,7 @@ def bookmark_delete_view(request, bookmark_id):
     bookmark = get_object_or_404(Bookmark, id=bookmark_id, user=request.user)
     bookmark.delete()
     messages.success(request, "Bookmark deleted.")
-    if next_url and url_has_allowed_host_and_scheme(
-        next_url, allowed_hosts={request.get_host()}
-    ):
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
         return redirect(next_url)
     return redirect("bookmarks-page")
 
@@ -1842,15 +1717,11 @@ def bookmark_from_article_view(request, article_id):
     )
 
     # Restrict category queryset to user's categories
-    form.fields["category"].queryset = BookmarkCategory.objects.filter(
-        user=request.user
-    ).order_by("display_order")
+    form.fields["category"].queryset = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
     form.fields["category"].empty_label = "Uncategorized"
 
     existing_tags = Tag.objects.filter(user=request.user).order_by("name")
-    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by(
-        "display_order"
-    )
+    bookmark_categories = BookmarkCategory.objects.filter(user=request.user).order_by("display_order")
     return render(
         request,
         "bookmarks/bookmark_form.html",
@@ -1883,14 +1754,9 @@ def tag_list_view(request):
     else:
         form = TagForm()
 
-    tags = Tag.objects.filter(user=request.user).annotate(
-        bookmark_count=Count("bookmarks")
-    )
+    tags = Tag.objects.filter(user=request.user).annotate(bookmark_count=Count("bookmarks"))
 
-    tag_rows = [
-        {"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")}
-        for tag in tags
-    ]
+    tag_rows = [{"tag": tag, "form": TagForm(instance=tag, prefix=f"tag-{tag.id}")} for tag in tags]
 
     return render(
         request,
@@ -1952,9 +1818,7 @@ def bookmark_category_update_view(request, category_id):
         messages.success(request, f"Deleted category: {name}")
         return redirect("settings-categories")
 
-    form = BookmarkCategoryForm(
-        request.POST, instance=category, prefix=f"cat-{category.id}"
-    )
+    form = BookmarkCategoryForm(request.POST, instance=category, prefix=f"cat-{category.id}")
     if form.is_valid():
         c = form.save(commit=False)
         c.user = request.user
@@ -1979,9 +1843,7 @@ def bookmark_category_reorder_view(request):
         category_ids = data.get("category_ids", [])
 
         for order, cat_id in enumerate(category_ids):
-            BookmarkCategory.objects.filter(id=int(cat_id), user=request.user).update(
-                display_order=order
-            )
+            BookmarkCategory.objects.filter(id=int(cat_id), user=request.user).update(display_order=order)
 
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
     except Exception as e:
@@ -1995,9 +1857,7 @@ def bookmark_category_reorder_view(request):
 def _get_read_later_articles(user):
     """Get articles marked as read_later"""
     return (
-        ArticleUserState.objects.filter(
-            user=user, article__isnull=False, is_read_later=True
-        )
+        ArticleUserState.objects.filter(user=user, article__isnull=False, is_read_later=True)
         .select_related("article__feed")
         .order_by("-article__published_at")
     )
@@ -2015,9 +1875,7 @@ def _get_dashboard_statistics(user):
     bookmark_category_count = BookmarkCategory.objects.filter(user=user).count()
 
     unread_articles = ArticleUserState.objects.filter(user=user, is_read=False).count()
-    read_later_count = ArticleUserState.objects.filter(
-        user=user, is_read_later=True
-    ).count()
+    read_later_count = ArticleUserState.objects.filter(user=user, is_read_later=True).count()
 
     return {
         "feed_count": feed_count,
@@ -2070,12 +1928,7 @@ def main_dashboard_view(request):
         .order_by("-created_at")[:10]
     )
     bookmark_ids = [b.id for b in recent_bookmarks_qs]
-    bm_states = {
-        s.bookmark_id: s
-        for s in BookmarkUserState.objects.filter(
-            user=user, bookmark_id__in=bookmark_ids
-        )
-    }
+    bm_states = {s.bookmark_id: s for s in BookmarkUserState.objects.filter(user=user, bookmark_id__in=bookmark_ids)}
     recent_bookmarks = []
     for bm in recent_bookmarks_qs:
         from urllib.parse import urlparse as _urlparse
@@ -2102,9 +1955,7 @@ def main_dashboard_view(request):
 
     total_bookmarks = Bookmark.objects.filter(user=user).count()
     total_categories = BookmarkCategory.objects.filter(user=user).count()
-    read_later_count = BookmarkUserState.objects.filter(
-        user=user, is_read_later=True
-    ).count()
+    read_later_count = BookmarkUserState.objects.filter(user=user, is_read_later=True).count()
     pinned_count = len(pinned_bookmarks)
 
     bookmark_stats = {
@@ -2161,11 +2012,7 @@ def overview_dashboard_view(request):
         .order_by("-published_at")[:5]
     )
 
-    recent_bookmarks = (
-        Bookmark.objects.filter(user=request.user)
-        .select_related("category")
-        .order_by("-created_at")[:5]
-    )
+    recent_bookmarks = Bookmark.objects.filter(user=request.user).select_related("category").order_by("-created_at")[:5]
 
     context = {
         "current_page": "overview",
@@ -2224,9 +2071,7 @@ def bookmarks_page_view(request):
     bookmarks_qs = Bookmark.objects.filter(user=request.user).prefetch_related("tags")
     if query:
         bookmarks_qs = bookmarks_qs.filter(
-            Q(title__icontains=query)
-            | Q(description__icontains=query)
-            | Q(url__icontains=query)
+            Q(title__icontains=query) | Q(description__icontains=query) | Q(url__icontains=query)
         )
     if tag_slug:
         bookmarks_qs = bookmarks_qs.filter(tags__slug=tag_slug)
@@ -2246,9 +2091,7 @@ def bookmarks_page_view(request):
             state_filters["is_read"] = True
 
         bookmarks_qs = bookmarks_qs.filter(
-            id__in=BookmarkUserState.objects.filter(**state_filters).values(
-                "bookmark_id"
-            )
+            id__in=BookmarkUserState.objects.filter(**state_filters).values("bookmark_id")
         )
 
     if sort_mode == "oldest":
@@ -2260,9 +2103,7 @@ def bookmarks_page_view(request):
     else:
         bookmarks_qs = bookmarks_qs.order_by("-created_at")
 
-    tags = Tag.objects.filter(user=request.user).annotate(
-        bookmark_count=Count("bookmarks")
-    )
+    tags = Tag.objects.filter(user=request.user).annotate(bookmark_count=Count("bookmarks"))
     categories = (
         BookmarkCategory.objects.filter(user=request.user)
         .annotate(bookmark_count=Count("bookmarks"))
@@ -2272,9 +2113,7 @@ def bookmarks_page_view(request):
     display_mode = _resolve_display_mode(request)
 
     if layout_mode == "collections":
-        bookmarks_for_display = list(
-            bookmarks_qs.select_related("category").prefetch_related("tags")
-        )
+        bookmarks_for_display = list(bookmarks_qs.select_related("category").prefetch_related("tags"))
         page_obj = None
     else:
         paginator = Paginator(bookmarks_qs, 20)
@@ -2285,10 +2124,7 @@ def bookmarks_page_view(request):
     state_by_bookmark_id = {}
     if bookmark_ids:
         state_by_bookmark_id = {
-            s.bookmark_id: s
-            for s in BookmarkUserState.objects.filter(
-                user=request.user, bookmark_id__in=bookmark_ids
-            )
+            s.bookmark_id: s for s in BookmarkUserState.objects.filter(user=request.user, bookmark_id__in=bookmark_ids)
         }
 
     def _bookmark_card(bm):
@@ -2307,7 +2143,7 @@ def bookmarks_page_view(request):
             "category": bm.category,
             "created_at": bm.created_at,
             "is_pinned": state.is_pinned if state else False,
-                "is_favorite": state.is_favorite if state else False,
+            "is_favorite": state.is_favorite if state else False,
             "is_read_later": state.is_read_later if state else False,
             "is_read": state.is_read if state else False,
         }
@@ -2385,17 +2221,9 @@ def bookmarks_page_view(request):
     }
 
     if category_id:
-        selected_category = BookmarkCategory.objects.filter(
-            user=request.user, id=category_id
-        ).first()
-        context["selected_category_name"] = (
-            selected_category.name if selected_category else category_id
-        )
-        context["page_title"] = (
-            f'Bookmarks in "{selected_category.name}"'
-            if selected_category
-            else "Bookmarks"
-        )
+        selected_category = BookmarkCategory.objects.filter(user=request.user, id=category_id).first()
+        context["selected_category_name"] = selected_category.name if selected_category else category_id
+        context["page_title"] = f'Bookmarks in "{selected_category.name}"' if selected_category else "Bookmarks"
     else:
         context["selected_category_name"] = ""
         if bookmark_flag == "pinned":
@@ -2406,10 +2234,7 @@ def bookmarks_page_view(request):
             context["page_title"] = "Read Bookmarks"
         else:
             context["page_title"] = "All Bookmarks"
-    context["page_subtitle"] = (
-        f"{context['bookmark_count']} bookmark"
-        f"{'s' if context['bookmark_count'] != 1 else ''}"
-    )
+    context["page_subtitle"] = f"{context['bookmark_count']} bookmark{'s' if context['bookmark_count'] != 1 else ''}"
 
     return render(request, "bookmarks/bookmarks_page.html", context)
 
@@ -2420,9 +2245,7 @@ def read_later_view(request):
     params = request.GET.copy()
     params["state"] = "read-later"
     query = params.urlencode()
-    return redirect(
-        f"{reverse('feeds-page')}?{query}" if query else reverse("feeds-page")
-    )
+    return redirect(f"{reverse('feeds-page')}?{query}" if query else reverse("feeds-page"))
 
 
 @login_required
@@ -2442,9 +2265,7 @@ def saved_view(request):
     context = _build_article_list_context(request, base_qs)
     request.GET = orig_get
 
-    bookmark_states_rl = BookmarkUserState.objects.filter(
-        user=request.user, is_read_later=True
-    )
+    bookmark_states_rl = BookmarkUserState.objects.filter(user=request.user, is_read_later=True)
     bookmarks_qs = Bookmark.objects.filter(
         user=request.user,
         id__in=bookmark_states_rl.values("bookmark_id"),
@@ -2453,9 +2274,7 @@ def saved_view(request):
     query = (request.GET.get("q") or "").strip()
     if query:
         bookmarks_qs = bookmarks_qs.filter(
-            Q(title__icontains=query)
-            | Q(description__icontains=query)
-            | Q(url__icontains=query)
+            Q(title__icontains=query) | Q(description__icontains=query) | Q(url__icontains=query)
         )
 
     sort_mode = context.get("sort_mode", "latest")
@@ -2493,9 +2312,7 @@ def saved_view(request):
             "saved_state": "read-later",
             "saved_total": total_read_later,
             "page_title": "Read Later",
-            "page_subtitle": (
-                f"{total_read_later} item{'s' if total_read_later != 1 else ''} saved for later"
-            ),
+            "page_subtitle": (f"{total_read_later} item{'s' if total_read_later != 1 else ''} saved for later"),
             "bookmark_cards": bookmark_cards,
             "bookmark_saved_count": bookmarks_qs.count(),
             "state_filter_links": [],
@@ -2525,9 +2342,7 @@ def save_article_as_bookmark_view(request, article_id):
     existing = Bookmark.objects.filter(user=request.user, url=article.link).first()
     if existing:
         if is_ajax:
-            return JsonResponse(
-                {"ok": True, "bookmark_id": existing.id, "already_saved": True}
-            )
+            return JsonResponse({"ok": True, "bookmark_id": existing.id, "already_saved": True})
         messages.info(request, "Already saved to bookmarks.")
         return redirect("bookmarks-page")
 
@@ -2555,9 +2370,7 @@ def save_article_as_bookmark_view(request, article_id):
         return redirect("bookmarks-page")
 
     if is_ajax:
-        return JsonResponse(
-            {"ok": True, "bookmark_id": bookmark.id, "already_saved": False}
-        )
+        return JsonResponse({"ok": True, "bookmark_id": bookmark.id, "already_saved": False})
 
     messages.success(request, "Saved to bookmarks.")
     return redirect("bookmarks-page")

@@ -213,7 +213,9 @@ async def update_subscription(
             try:
                 cat_uuid = uuid.UUID(payload.category_id)
                 cat_check = await db.execute(
-                    select(Category).where(Category.id == cat_uuid, Category.user_id == current_user.id)
+                    select(Category).where(
+                        Category.id == cat_uuid, Category.user_id == current_user.id
+                    )
                 )
                 if not cat_check.scalar_one_or_none():
                     raise HTTPException(status_code=400, detail="Category not found")
@@ -254,9 +256,18 @@ async def get_articles(
     # Build query selecting Articles and joining UserStates
     query = (
         select(Article, ArticleUserState, Feed.title)
-        .join(ArticleUserState, and_(ArticleUserState.article_id == Article.id, ArticleUserState.user_id == current_user.id))
+        .join(
+            ArticleUserState,
+            and_(
+                ArticleUserState.article_id == Article.id,
+                ArticleUserState.user_id == current_user.id,
+            ),
+        )
         .join(Feed, Feed.id == Article.feed_id)
-        .join(Subscription, and_(Subscription.feed_id == Feed.id, Subscription.user_id == current_user.id))
+        .join(
+            Subscription,
+            and_(Subscription.feed_id == Feed.id, Subscription.user_id == current_user.id),
+        )
     )
 
     if is_read is not None:
@@ -276,7 +287,11 @@ async def get_articles(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid category UUID")
 
-    query = query.order_by(Article.published_at.desc(), Article.created_at.desc()).limit(limit).offset(offset)
+    query = (
+        query.order_by(Article.published_at.desc(), Article.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     result = await db.execute(query)
     rows = result.all()
 
@@ -400,4 +415,3 @@ async def unfavorite_article(
     state.is_favorited = False
     await db.commit()
     return {"status": "ok"}
-

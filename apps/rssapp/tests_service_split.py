@@ -5,9 +5,7 @@ from django.urls import reverse
 class ServiceNamespaceRoutingTests(SimpleTestCase):
     def test_rss_service_html_routes_are_namespaced(self):
         self.assertEqual(reverse("rss_service:feeds-page"), "/rss/feeds/")
-        self.assertEqual(
-            reverse("rss_service:feed-articles", args=[1]), "/rss/feeds/1/"
-        )
+        self.assertEqual(reverse("rss_service:feed-articles", args=[1]), "/rss/feeds/1/")
         self.assertEqual(
             reverse("rss_service:article-reader", args=[1]),
             "/rss/articles/1/reader/",

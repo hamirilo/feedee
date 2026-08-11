@@ -15,7 +15,6 @@ from .models import (
     Bookmark,
     BookmarkUserState,
     Feed,
-    Tag,
     UserProfile,
 )
 
@@ -208,9 +207,7 @@ class HTMLSanitizationTests(TestCase):
         self.assertIn("<h2>Title</h2>", article.content)
         self.assertIn("<strong>bold</strong>", article.content)
         self.assertIn("<em>italic</em>", article.content)
-        self.assertIn(
-            '<a href="https://example.com" title="Example">Link</a>', article.content
-        )
+        self.assertIn('<a href="https://example.com" title="Example">Link</a>', article.content)
         self.assertIn("<img", article.content)
         self.assertIn("<li>Item 1</li>", article.content)
         self.assertIn("<blockquote>Quote</blockquote>", article.content)
@@ -350,9 +347,7 @@ class ArticleUserStateTests(TestCase):
 
     def test_web_toggle_authenticated_updates_state_and_preserves_query_params(self):
         self.client.force_login(self.user)
-        toggle_url = reverse(
-            "article-state-toggle", args=[self.article.id, "is_read_later"]
-        )
+        toggle_url = reverse("article-state-toggle", args=[self.article.id, "is_read_later"])
 
         response = self.client.post(toggle_url, data={"q": "django", "page": "3"})
 
@@ -406,13 +401,9 @@ class ArticleUserStateTests(TestCase):
         self.assertContains(response, "Overview")
 
     def test_web_toggle_anonymous_does_not_create_state_and_shows_error(self):
-        toggle_url = reverse(
-            "article-state-toggle", args=[self.article.id, "is_read_later"]
-        )
+        toggle_url = reverse("article-state-toggle", args=[self.article.id, "is_read_later"])
 
-        response = self.client.post(
-            toggle_url, data={"q": "feeds", "page": "2"}, follow=True
-        )
+        response = self.client.post(toggle_url, data={"q": "feeds", "page": "2"}, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(ArticleUserState.objects.count(), 0)
@@ -422,9 +413,7 @@ class ArticleUserStateTests(TestCase):
 
 class FeedArticleBindingTests(TestCase):
     def setUp(self):
-        self.user = get_user_model().objects.create_user(
-            username="worker", password="pass"
-        )
+        self.user = get_user_model().objects.create_user(username="worker", password="pass")
         self.token = Token.objects.create(user=self.user)
         self.auth_header = {"HTTP_AUTHORIZATION": f"Token {self.token.key}"}
 
@@ -466,9 +455,7 @@ class FeedArticleBindingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual(
-            [item["id"] for item in payload], [feed_first.id, feed_last.id]
-        )
+        self.assertEqual([item["id"] for item in payload], [feed_first.id, feed_last.id])
 
     def test_feed_reorder_updates_display_order(self):
         feed_a = Feed.objects.create(name="Feed A", url="https://example.com/a.xml")
@@ -520,9 +507,7 @@ class FeedArticleBindingTests(TestCase):
         self.assertIn(response.status_code, (401, 403))
 
     def test_dashboard_hides_legacy_feedless_articles(self):
-        feed = Feed.objects.create(
-            name="Current Feed", url="https://example.com/new.xml"
-        )
+        feed = Feed.objects.create(name="Current Feed", url="https://example.com/new.xml")
         Article.objects.create(
             feed=feed,
             title="Current article",
@@ -547,9 +532,7 @@ class FeedArticleBindingTests(TestCase):
 
     def test_reader_view_prefers_content_then_summary(self):
         self.client.force_login(self.user)
-        feed = Feed.objects.create(
-            name="Reader Feed", url="https://example.com/reader.xml"
-        )
+        feed = Feed.objects.create(name="Reader Feed", url="https://example.com/reader.xml")
         content_article = Article.objects.create(
             feed=feed,
             title="Reader content article",
@@ -571,12 +554,8 @@ class FeedArticleBindingTests(TestCase):
             content="",
         )
 
-        content_response = self.client.get(
-            reverse("article-reader", args=[content_article.id])
-        )
-        summary_response = self.client.get(
-            reverse("article-reader", args=[summary_article.id])
-        )
+        content_response = self.client.get(reverse("article-reader", args=[content_article.id]))
+        summary_response = self.client.get(reverse("article-reader", args=[summary_article.id]))
 
         self.assertContains(content_response, "Body content")
         self.assertContains(summary_response, "Summary only text")
@@ -624,14 +603,10 @@ class FullTextExtractionMVPTests(TestCase):
         self.assertEqual(article.content, "<p>Extracted article body</p>")
         self.assertEqual(article.content_source, "extracted")
         self.assertEqual(article.extraction_status, "success")
-        mock_extract.assert_called_once_with(
-            "https://example.com/posts/needs-extraction"
-        )
+        mock_extract.assert_called_once_with("https://example.com/posts/needs-extraction")
 
     @patch("apps.rssapp.views.extract_article_content")
-    def test_ingest_keeps_feed_content_without_triggering_extraction(
-        self, mock_extract
-    ):
+    def test_ingest_keeps_feed_content_without_triggering_extraction(self, mock_extract):
         response = self.client.post(
             reverse("article-ingest"),
             data=[
@@ -688,9 +663,7 @@ class FullTextExtractionMVPTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Article.objects.filter(feed=self.feed).count(), 2)
         self.assertEqual(
-            Article.objects.filter(
-                content_source="summary", extraction_status="skipped"
-            ).count(),
+            Article.objects.filter(content_source="summary", extraction_status="skipped").count(),
             2,
         )
         mock_extract.assert_not_called()
@@ -785,12 +758,8 @@ class FeedArticlesViewTests(TestCase):
             email="reader@example.com",
             password="password123",
         )
-        self.feed_a = Feed.objects.create(
-            name="Feed A", url="https://example.com/a.xml", category="News"
-        )
-        self.feed_b = Feed.objects.create(
-            name="Feed B", url="https://example.com/b.xml", category="Tech"
-        )
+        self.feed_a = Feed.objects.create(name="Feed A", url="https://example.com/a.xml", category="News")
+        self.feed_b = Feed.objects.create(name="Feed B", url="https://example.com/b.xml", category="Tech")
         self.article_a1 = Article.objects.create(
             feed=self.feed_a,
             title="Article A1",
@@ -830,9 +799,7 @@ class FeedArticlesViewTests(TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_feed_articles_view_filters_by_search_query(self):
-        response = self.client.get(
-            reverse("feed-articles", args=[self.feed_a.id]) + "?q=A1"
-        )
+        response = self.client.get(reverse("feed-articles", args=[self.feed_a.id]) + "?q=A1")
 
         self.assertContains(response, "Article A1")
         self.assertNotContains(response, "Article A2")
@@ -840,9 +807,7 @@ class FeedArticlesViewTests(TestCase):
     def test_feed_articles_view_shows_article_counts(self):
         self.client.force_login(self.user)
 
-        ArticleUserState.objects.create(
-            user=self.user, article=self.article_a1, is_read_later=True
-        )
+        ArticleUserState.objects.create(user=self.user, article=self.article_a1, is_read_later=True)
 
         response = self.client.get(reverse("feed-articles", args=[self.feed_a.id]))
 
@@ -880,16 +845,10 @@ class FeedArticlesViewTests(TestCase):
         self.client.force_login(self.user)
 
         for article in (self.article_a1, self.article_a2, self.article_b1):
-            ArticleUserState.objects.create(
-                user=self.user, article=article, is_read=True
-            )
+            ArticleUserState.objects.create(user=self.user, article=article, is_read=True)
 
-        ArticleUserState.objects.create(
-            user=other_user, article=self.article_a1, is_read=True
-        )
-        ArticleUserState.objects.create(
-            user=other_user, article=self.article_a2, is_read=True
-        )
+        ArticleUserState.objects.create(user=other_user, article=self.article_a1, is_read=True)
+        ArticleUserState.objects.create(user=other_user, article=self.article_a2, is_read=True)
 
         response = self.client.get(reverse("rss-dashboard"))
 
@@ -962,23 +921,13 @@ class FeedDiscoveryAndOpmlTests(TestCase):
 
         response = self.client.post(
             reverse("feeds-opml-import"),
-            data={
-                "opml_file": SimpleUploadedFile(
-                    "feeds.opml", opml, content_type="text/xml"
-                )
-            },
+            data={"opml_file": SimpleUploadedFile("feeds.opml", opml, content_type="text/xml")},
             follow=True,
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(
-            Feed.objects.filter(
-                url="https://example.com/feed.xml", category="Tech"
-            ).exists()
-        )
-        self.assertEqual(
-            Feed.objects.filter(url="https://example.com/existing.xml").count(), 1
-        )
+        self.assertTrue(Feed.objects.filter(url="https://example.com/feed.xml", category="Tech").exists())
+        self.assertEqual(Feed.objects.filter(url="https://example.com/existing.xml").count(), 1)
         self.assertContains(response, "Imported 1 feed")
 
 
@@ -1138,9 +1087,7 @@ class EnhancedSearchAndRankingTests(TestCase):
         self.assertEqual(response.status_code, 200)
         article_ids = [card["id"] for card in response.context["article_cards"]]
         self.assertEqual(article_ids[0], favorite_unread.id)
-        self.assertLess(
-            article_ids.index(plain_unread.id), article_ids.index(read_article.id)
-        )
+        self.assertLess(article_ids.index(plain_unread.id), article_ids.index(read_article.id))
 
 
 class BookmarkletPopupViewAndDiscoveryTests(TestCase):
@@ -1171,7 +1118,7 @@ class BookmarkletPopupViewAndDiscoveryTests(TestCase):
 
         response = self.client.get(
             reverse("bookmark_service:bookmarklet-post"),
-            {"url": test_url, "title": test_title, "description": test_desc}
+            {"url": test_url, "title": test_title, "description": test_desc},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1193,7 +1140,7 @@ class BookmarkletPopupViewAndDiscoveryTests(TestCase):
                 "title": test_title,
                 "description": test_desc,
                 "tag_names": "tagA, tagB",
-            }
+            },
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1221,7 +1168,7 @@ class BookmarkletPopupViewAndDiscoveryTests(TestCase):
                 "url": test_url,
                 "name": test_name,
                 "category": "Tech",
-            }
+            },
         )
 
         self.assertEqual(response.status_code, 200)
@@ -1242,12 +1189,8 @@ class BookmarkletPopupViewAndDiscoveryTests(TestCase):
             "error_detail": "",
         }
         self.client.force_login(self.user)
-        response = self.client.get(
-            reverse("rss_service_api:feed-discover"),
-            {"url": "https://example.com"}
-        )
+        response = self.client.get(reverse("rss_service_api:feed-discover"), {"url": "https://example.com"})
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["feed_url"], "https://example.com/discovered.xml")
         self.assertEqual(data["title"], "Discovered Title")
-

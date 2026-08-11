@@ -1,7 +1,7 @@
 import hashlib
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 from uuid import UUID
+
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
@@ -15,31 +15,31 @@ class WorkerFeedResponse(Schema):
     id: UUID
     name: str
     url: str
-    etag: Optional[str] = None
-    last_modified: Optional[str] = None
+    etag: str | None = None
+    last_modified: str | None = None
 
 
 class FeedStatusPayload(Schema):
     status: str  # "success", "not_modified", "error"
     http_status: int
-    etag: Optional[str] = None
-    last_modified: Optional[str] = None
+    etag: str | None = None
+    last_modified: str | None = None
     item_count: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class IngestArticlePayload(Schema):
     feed_id: str
     title: str
     link: str
-    guid: Optional[str] = None
-    summary: Optional[str] = None
-    content: Optional[str] = None
-    image_url: Optional[str] = None
-    published_at: Optional[str] = None
+    guid: str | None = None
+    summary: str | None = None
+    content: str | None = None
+    image_url: str | None = None
+    published_at: str | None = None
 
 
-@router.get("/feeds", response=List[WorkerFeedResponse])
+@router.get("/feeds", response=list[WorkerFeedResponse])
 def get_worker_feeds(request):
     feeds = Feed.objects.filter(is_active=True)
     return [
@@ -61,7 +61,7 @@ def post_worker_feed_status(request, feed_id: UUID, payload: FeedStatusPayload):
     except Feed.DoesNotExist:
         raise HttpError(404, "Feed not found")
 
-    feed.last_fetched_at = datetime.now(timezone.utc)
+    feed.last_fetched_at = datetime.now(UTC)
     if payload.status == "error":
         feed.fetch_error = payload.error
     else:
@@ -76,7 +76,7 @@ def post_worker_feed_status(request, feed_id: UUID, payload: FeedStatusPayload):
 
 
 @router.post("/articles/ingest")
-def ingest_articles(request, payload: List[IngestArticlePayload]):
+def ingest_articles(request, payload: list[IngestArticlePayload]):
     created_count = 0
     skipped_count = 0
 
@@ -102,9 +102,7 @@ def ingest_articles(request, payload: List[IngestArticlePayload]):
         published_dt = None
         if item.published_at:
             try:
-                published_dt = datetime.fromisoformat(
-                    item.published_at.replace("Z", "+00:00")
-                )
+                published_dt = datetime.fromisoformat(item.published_at.replace("Z", "+00:00"))
             except ValueError:
                 pass
 
@@ -119,9 +117,7 @@ def ingest_articles(request, payload: List[IngestArticlePayload]):
             published_at=published_dt,
         )
 
-        subscribers = Subscription.objects.filter(feed=feed).values_list(
-            "user_id", flat=True
-        )
+        subscribers = Subscription.objects.filter(feed=feed).values_list("user_id", flat=True)
         states = [
             ArticleUserState(
                 user_id=user_id,

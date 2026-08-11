@@ -1,4 +1,5 @@
 import uuid
+
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -127,11 +128,7 @@ class Subscription(models.Model):
 
     class Meta:
         db_table = "subscriptions"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "feed"], name="uq_subscription_user_feed"
-            )
-        ]
+        constraints = [models.UniqueConstraint(fields=["user", "feed"], name="uq_subscription_user_feed")]
 
     def __str__(self) -> str:
         return f"{self.user} -> {self.feed}"
@@ -201,11 +198,7 @@ class ArticleUserState(models.Model):
 
     class Meta:
         db_table = "article_user_states"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "article"], name="uq_article_user_state"
-            )
-        ]
+        constraints = [models.UniqueConstraint(fields=["user", "article"], name="uq_article_user_state")]
 
     def __str__(self) -> str:
         return f"{self.user} article_state {self.article_id}"
@@ -330,11 +323,7 @@ class BookmarkUserState(models.Model):
 
     class Meta:
         db_table = "bookmark_user_states"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["user", "bookmark"], name="uq_bookmark_user_state"
-            )
-        ]
+        constraints = [models.UniqueConstraint(fields=["user", "bookmark"], name="uq_bookmark_user_state")]
 
     def __str__(self) -> str:
         return f"{self.user} bookmark_state {self.bookmark_id}"

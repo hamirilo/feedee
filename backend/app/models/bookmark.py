@@ -9,8 +9,8 @@ from .base import Base, TimestampMixin
 
 
 class BookmarkType(str, PyEnum):
-    RESOURCE = "resource"   # リソース型：必要な時に参照するURL（ツール集・アイコン配布サイト等）
-    CONTENT = "content"     # コンテンツ型：内容が良くて記憶に残したいもの（コラム・記事等）
+    RESOURCE = "resource"  # リソース型：必要な時に参照するURL（ツール集・アイコン配布サイト等）
+    CONTENT = "content"  # コンテンツ型：内容が良くて記憶に残したいもの（コラム・記事等）
 
 
 class Bookmark(Base, TimestampMixin):
@@ -18,9 +18,7 @@ class Bookmark(Base, TimestampMixin):
 
     __tablename__ = "bookmarks"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -56,13 +54,9 @@ class BookmarkUserState(Base, TimestampMixin):
     """ブックマークのユーザー状態（ピン留め・お気に入り）。"""
 
     __tablename__ = "bookmark_user_states"
-    __table_args__ = (
-        UniqueConstraint("user_id", "bookmark_id", name="uq_bookmark_user_state"),
-    )
+    __table_args__ = (UniqueConstraint("user_id", "bookmark_id", name="uq_bookmark_user_state"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )

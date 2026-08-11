@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
+
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
@@ -12,47 +12,43 @@ router = Router(tags=["Feeds & Articles"], auth=jwt_auth)
 
 class FeedSubscribeRequest(Schema):
     url: str
-    category_id: Optional[str] = None
-    display_name: Optional[str] = None
+    category_id: str | None = None
+    display_name: str | None = None
 
 
 class FeedUpdate(Schema):
-    display_name: Optional[str] = None
-    category_id: Optional[str] = None
+    display_name: str | None = None
+    category_id: str | None = None
 
 
 class FeedResponse(Schema):
     id: UUID
     url: str
-    title: Optional[str] = None
-    site_url: Optional[str] = None
-    favicon_url: Optional[str] = None
-    display_name: Optional[str] = None
-    category_id: Optional[UUID] = None
+    title: str | None = None
+    site_url: str | None = None
+    favicon_url: str | None = None
+    display_name: str | None = None
+    category_id: UUID | None = None
     order: int
 
 
 class ArticleResponse(Schema):
     id: UUID
     feed_id: UUID
-    feed_title: Optional[str] = None
+    feed_title: str | None = None
     url: str
-    title: Optional[str] = None
-    summary: Optional[str] = None
-    content: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    published_at: Optional[datetime] = None
+    title: str | None = None
+    summary: str | None = None
+    content: str | None = None
+    thumbnail_url: str | None = None
+    published_at: datetime | None = None
     is_read: bool = False
     is_favorited: bool = False
 
 
-@router.get("/feeds", response=List[FeedResponse])
+@router.get("/feeds", response=list[FeedResponse])
 def get_user_feeds(request):
-    subs = (
-        Subscription.objects.filter(user=request.auth)
-        .select_related("feed", "category")
-        .order_by("order")
-    )
+    subs = Subscription.objects.filter(user=request.auth).select_related("feed", "category").order_by("order")
     result = []
     for sub in subs:
         result.append(
@@ -120,9 +116,7 @@ def unsubscribe_feed(request, feed_id: UUID):
 @router.put("/feeds/{feed_id}", response=FeedResponse)
 def update_subscription(request, feed_id: UUID, payload: FeedUpdate):
     try:
-        sub = Subscription.objects.select_related("feed").get(
-            user=request.auth, feed_id=feed_id
-        )
+        sub = Subscription.objects.select_related("feed").get(user=request.auth, feed_id=feed_id)
     except Subscription.DoesNotExist:
         raise HttpError(404, "Subscription not found")
 
@@ -131,9 +125,7 @@ def update_subscription(request, feed_id: UUID, payload: FeedUpdate):
             sub.category = None
         else:
             try:
-                sub.category = Category.objects.get(
-                    id=payload.category_id, user=request.auth
-                )
+                sub.category = Category.objects.get(id=payload.category_id, user=request.auth)
             except (Category.DoesNotExist, ValueError):
                 raise HttpError(400, "Category not found or invalid UUID")
 
@@ -154,32 +146,28 @@ def update_subscription(request, feed_id: UUID, payload: FeedUpdate):
     )
 
 
-@router.get("/feeds/articles", response=List[ArticleResponse])
+@router.get("/feeds/articles", response=list[ArticleResponse])
 def get_articles(
     request,
-    is_read: Optional[bool] = None,
-    is_favorited: Optional[bool] = None,
-    feed_id: Optional[UUID] = None,
-    category_id: Optional[UUID] = None,
+    is_read: bool | None = None,
+    is_favorited: bool | None = None,
+    feed_id: UUID | None = None,
+    category_id: UUID | None = None,
     limit: int = 50,
     offset: int = 0,
 ):
     # Filter user subscribed feeds
-    sub_feed_ids = Subscription.objects.filter(user=request.auth).values_list(
-        "feed_id", flat=True
-    )
+    sub_feed_ids = Subscription.objects.filter(user=request.auth).values_list("feed_id", flat=True)
     if category_id:
-        sub_feed_ids = Subscription.objects.filter(
-            user=request.auth, category_id=category_id
-        ).values_list("feed_id", flat=True)
+        sub_feed_ids = Subscription.objects.filter(user=request.auth, category_id=category_id).values_list(
+            "feed_id", flat=True
+        )
 
     if feed_id:
         sub_feed_ids = [fid for fid in sub_feed_ids if fid == feed_id]
 
     articles = (
-        Article.objects.filter(feed_id__in=sub_feed_ids)
-        .select_related("feed")
-        .order_by("-published_at", "-created_at")
+        Article.objects.filter(feed_id__in=sub_feed_ids).select_related("feed").order_by("-published_at", "-created_at")
     )
 
     # Fetch states for user
@@ -225,9 +213,7 @@ def get_articles(
 
 @router.post("/feeds/articles/{article_id}/read")
 def mark_article_read(request, article_id: UUID):
-    st, _ = ArticleUserState.objects.get_or_create(
-        user=request.auth, article_id=article_id
-    )
+    st, _ = ArticleUserState.objects.get_or_create(user=request.auth, article_id=article_id)
     st.is_read = True
     st.save(update_fields=["is_read", "updated_at"])
     return {"status": "ok"}
@@ -235,9 +221,7 @@ def mark_article_read(request, article_id: UUID):
 
 @router.post("/feeds/articles/{article_id}/unread")
 def mark_article_unread(request, article_id: UUID):
-    st, _ = ArticleUserState.objects.get_or_create(
-        user=request.auth, article_id=article_id
-    )
+    st, _ = ArticleUserState.objects.get_or_create(user=request.auth, article_id=article_id)
     st.is_read = False
     st.save(update_fields=["is_read", "updated_at"])
     return {"status": "ok"}
@@ -245,9 +229,7 @@ def mark_article_unread(request, article_id: UUID):
 
 @router.post("/feeds/articles/{article_id}/favorite")
 def favorite_article(request, article_id: UUID):
-    st, _ = ArticleUserState.objects.get_or_create(
-        user=request.auth, article_id=article_id
-    )
+    st, _ = ArticleUserState.objects.get_or_create(user=request.auth, article_id=article_id)
     st.is_favorited = True
     st.save(update_fields=["is_favorited", "updated_at"])
     return {"status": "ok"}
@@ -255,9 +237,7 @@ def favorite_article(request, article_id: UUID):
 
 @router.post("/feeds/articles/{article_id}/unfavorite")
 def unfavorite_article(request, article_id: UUID):
-    st, _ = ArticleUserState.objects.get_or_create(
-        user=request.auth, article_id=article_id
-    )
+    st, _ = ArticleUserState.objects.get_or_create(user=request.auth, article_id=article_id)
     st.is_favorited = False
     st.save(update_fields=["is_favorited", "updated_at"])
     return {"status": "ok"}

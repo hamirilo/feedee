@@ -1,19 +1,14 @@
-from django.urls import path
-from django.urls import include
+from django.urls import include, path
 from django.views.generic import RedirectView
 
 from .views import (
-    account_settings_view,
-    bookmark_settings_view,
     export_opml_view,
     favorites_view,
     feed_update_view,
     import_opml_view,
-    main_dashboard_view,
     overview_dashboard_view,
     read_later_view,
     refresh_all_feeds_view,
-    rss_settings_view,
     settings_view,
 )
 

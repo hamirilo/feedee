@@ -4,8 +4,10 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import (
     AuthenticationForm,
-    PasswordChangeForm as DjangoPasswordChangeForm,
     UserCreationForm,
+)
+from django.contrib.auth.forms import (
+    PasswordChangeForm as DjangoPasswordChangeForm,
 )
 
 from .models import Bookmark, BookmarkCategory, Feed, Tag, UserProfile
@@ -25,9 +27,7 @@ class FeedCreateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["name"].required = False
         self.fields["name"].widget.attrs["placeholder"] = "Feed name (optional)"
-        self.fields["url"].widget.attrs["placeholder"] = (
-            "https://example.com or https://example.com/feed.xml"
-        )
+        self.fields["url"].widget.attrs["placeholder"] = "https://example.com or https://example.com/feed.xml"
         self.discovered_feed_url = ""
         self.discovered_title = ""
         self.discovery_used = False
@@ -61,8 +61,7 @@ class FeedCreateForm(forms.ModelForm):
         name = (cleaned.get("name") or "").strip()
         if not name:
             fallback_name = (
-                self.discovered_title
-                or urlsplit(self.discovered_feed_url or cleaned.get("url") or "").netloc
+                self.discovered_title or urlsplit(self.discovered_feed_url or cleaned.get("url") or "").netloc
             )
             if fallback_name:
                 cleaned["name"] = fallback_name
@@ -75,18 +74,14 @@ class FeedCreateForm(forms.ModelForm):
             "category": "Group",
         }
         widgets = {
-            "name": forms.TextInput(
-                attrs={"class": _INPUT_CLASS, "placeholder": "Feed name"}
-            ),
+            "name": forms.TextInput(attrs={"class": _INPUT_CLASS, "placeholder": "Feed name"}),
             "url": forms.URLInput(
                 attrs={
                     "class": _INPUT_CLASS,
                     "placeholder": "https://example.com/rss.xml",
                 }
             ),
-            "category": forms.TextInput(
-                attrs={"class": _INPUT_CLASS, "placeholder": "Group (optional)"}
-            ),
+            "category": forms.TextInput(attrs={"class": _INPUT_CLASS, "placeholder": "Group (optional)"}),
         }
 
 
@@ -100,9 +95,7 @@ class FeedUpdateForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(attrs={"class": _INPUT_CLASS}),
             "url": forms.URLInput(attrs={"class": _INPUT_CLASS}),
-            "category": forms.TextInput(
-                attrs={"class": _INPUT_CLASS, "placeholder": "Ungrouped"}
-            ),
+            "category": forms.TextInput(attrs={"class": _INPUT_CLASS, "placeholder": "Ungrouped"}),
             "is_active": forms.CheckboxInput(
                 attrs={
                     "class": "h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500",
@@ -116,12 +109,8 @@ class TagForm(forms.ModelForm):
         model = Tag
         fields = ["name", "color"]
         widgets = {
-            "name": forms.TextInput(
-                attrs={"class": _INPUT_CLASS, "placeholder": "Tag name"}
-            ),
-            "color": forms.HiddenInput(
-                attrs={"x-model": "selectedColor"}
-            ),
+            "name": forms.TextInput(attrs={"class": _INPUT_CLASS, "placeholder": "Tag name"}),
+            "color": forms.HiddenInput(attrs={"x-model": "selectedColor"}),
         }
 
 
@@ -176,12 +165,8 @@ class BookmarkCategoryForm(forms.ModelForm):
         model = BookmarkCategory
         fields = ["name", "color"]
         widgets = {
-            "name": forms.TextInput(
-                attrs={"class": _INPUT_CLASS, "placeholder": "Category name"}
-            ),
-            "color": forms.HiddenInput(
-                attrs={"x-model": "selectedColor"}
-            ),
+            "name": forms.TextInput(attrs={"class": _INPUT_CLASS, "placeholder": "Category name"}),
+            "color": forms.HiddenInput(attrs={"x-model": "selectedColor"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -190,16 +175,18 @@ class BookmarkCategoryForm(forms.ModelForm):
         self.fields["parent"].empty_label = "None (Top level)"
         # Exclude self and descendants from parent choices to prevent circular references
         if self.instance.pk:
+
             def get_descendants(cat):
                 descendants = []
                 for child in BookmarkCategory.objects.filter(parent=cat):
                     descendants.append(child.pk)
                     descendants.extend(get_descendants(child))
                 return descendants
+
             exclude_ids = [self.instance.pk] + get_descendants(self.instance)
-            self.fields["parent"].queryset = BookmarkCategory.objects.filter(
-                user=self.instance.user
-            ).exclude(pk__in=exclude_ids)
+            self.fields["parent"].queryset = BookmarkCategory.objects.filter(user=self.instance.user).exclude(
+                pk__in=exclude_ids
+            )
 
 
 class UserProfileForm(forms.ModelForm):

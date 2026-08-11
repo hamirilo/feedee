@@ -1,0 +1,16 @@
+[files]
+extend-exclude = [
+  "*.lock",
+  "*.log",
+  "node_modules",
+  ".venv",
+  "staticfiles",
+  "media",
+  "backend",
+  "hamirilo-platform"
+]
+
+[default.extend-words]
+feedee = "feedee"
+hamirilo = "hamirilo"
+categor = "categor"

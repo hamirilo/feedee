@@ -168,12 +168,14 @@ async def create_bookmark(
 
     if not ogp_title or not ogp_desc or not ogp_thumb:
         from app.utils.ogp import fetch_ogp
+
         ogp_data = await fetch_ogp(payload.url)
         if not ogp_title:
             if ogp_data.get("title"):
                 ogp_title = ogp_data["title"]
             else:
                 from urllib.parse import urlparse
+
                 try:
                     parsed = urlparse(payload.url)
                     ogp_title = parsed.netloc or payload.url
@@ -211,9 +213,7 @@ async def create_bookmark(
 
     # Re-fetch with selectinload to avoid lazy-loading MissingGreenlet error on bookmark.tags
     result = await db.execute(
-        select(Bookmark)
-        .options(selectinload(Bookmark.tags))
-        .where(Bookmark.id == bookmark.id)
+        select(Bookmark).options(selectinload(Bookmark.tags)).where(Bookmark.id == bookmark.id)
     )
     bookmark = result.scalar_one()
 
@@ -274,7 +274,9 @@ async def update_bookmark(
             try:
                 cat_uuid = uuid.UUID(payload.category_id)
                 cat_check = await db.execute(
-                    select(Category).where(Category.id == cat_uuid, Category.user_id == current_user.id)
+                    select(Category).where(
+                        Category.id == cat_uuid, Category.user_id == current_user.id
+                    )
                 )
                 if not cat_check.scalar_one_or_none():
                     raise HTTPException(status_code=400, detail="Category not found")
@@ -439,4 +441,3 @@ async def unfavorite_bookmark(
     state.is_favorited = False
     await db.commit()
     return {"status": "ok"}
-

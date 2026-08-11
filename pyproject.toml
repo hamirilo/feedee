@@ -27,22 +27,23 @@ dev = [
 ]
 
 [tool.ruff]
-line-length = 120
-target-version = "py313"
-extend-exclude = [
-    "hamirilo-platform",
-    "*/migrations/*",
-    "staticfiles/*",
-    "media/*",
-]
+extend = "hamirilo-platform/standards/configs/shared_ruff.toml"
+extend-exclude = ["hamirilo-platform", "backend", "*/migrations/*", "staticfiles/*", "media/*"]
 
+[tool.ruff.lint.per-file-ignores]
+"config/settings/*.py" = ["F403", "F405"]
 
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
-ignore = ["E501"]
+[tool.mypy]
+python_version = "3.13"
+plugins = ["mypy_django_plugin.main"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+exclude = ["migrations", "staticfiles", "media", "hamirilo-platform"]
 
-[tool.ruff.lint.isort]
-known-first-party = ["apps", "config"]
+[tool.django-stubs]
+django_settings_module = "config.settings.development"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.development"

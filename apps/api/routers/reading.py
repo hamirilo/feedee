@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
 from uuid import UUID
+
 from django.db.models import Q
 from ninja import Router, Schema
 from ninja.errors import HttpError
@@ -12,40 +12,38 @@ router = Router(tags=["Read Later Workflow"], auth=jwt_auth)
 
 
 class ReadingItemCreate(Schema):
-    url: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    article_id: Optional[UUID] = None
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+    article_id: UUID | None = None
 
 
 class ReadingItemResponse(Schema):
     id: UUID
-    article_id: Optional[UUID] = None
-    url: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    article_id: UUID | None = None
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
     order: int
     is_archived: bool
-    archived_at: Optional[datetime] = None
+    archived_at: datetime | None = None
 
 
 class SomedayItemResponse(Schema):
     id: UUID
-    article_id: Optional[UUID] = None
-    url: Optional[str] = None
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
+    article_id: UUID | None = None
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
     order: int
 
 
-@router.get("/inbox", response=List[ReadingItemResponse])
+@router.get("/inbox", response=list[ReadingItemResponse])
 def get_inbox_items(request):
-    items = ReadingItem.objects.filter(
-        user=request.auth, is_archived=False
-    ).order_by("order", "-created_at")
+    items = ReadingItem.objects.filter(user=request.auth, is_archived=False).order_by("order", "-created_at")
     return list(items)
 
 
@@ -69,9 +67,7 @@ def add_to_inbox(request, payload: ReadingItemCreate):
 
     existing = None
     if article:
-        existing = ReadingItem.objects.filter(
-            user=request.auth, article=article
-        ).first()
+        existing = ReadingItem.objects.filter(user=request.auth, article=article).first()
     elif url:
         existing = ReadingItem.objects.filter(user=request.auth, url=url).first()
 
@@ -124,11 +120,9 @@ def snooze_to_someday(request, item_id: UUID):
     return someday
 
 
-@router.get("/someday", response=List[SomedayItemResponse])
+@router.get("/someday", response=list[SomedayItemResponse])
 def get_someday_items(request):
-    items = SomedayItem.objects.filter(user=request.auth).order_by(
-        "order", "-created_at"
-    )
+    items = SomedayItem.objects.filter(user=request.auth).order_by("order", "-created_at")
     return list(items)
 
 
@@ -162,8 +156,8 @@ def unsnooze_to_inbox(request, item_id: UUID):
     return inbox_item
 
 
-@router.get("/inbox/archived", response=List[ReadingItemResponse])
-def get_archived_items(request, q: Optional[str] = None):
+@router.get("/inbox/archived", response=list[ReadingItemResponse])
+def get_archived_items(request, q: str | None = None):
     qs = ReadingItem.objects.filter(user=request.auth, is_archived=True)
     if q:
         qs = qs.filter(Q(title__icontains=q) | Q(url__icontains=q))

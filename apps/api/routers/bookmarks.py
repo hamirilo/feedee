@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
 from urllib.parse import urlparse
 from uuid import UUID
+
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
@@ -20,35 +20,35 @@ class TagResponse(Schema):
 
 class BookmarkCreate(Schema):
     url: str
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    note: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+    note: str | None = None
     bookmark_type: str = "content"
-    category_id: Optional[str] = None
-    tag_ids: List[str] = []
+    category_id: str | None = None
+    tag_ids: list[str] = []
 
 
 class BookmarkUpdate(Schema):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    note: Optional[str] = None
-    bookmark_type: Optional[str] = None
-    category_id: Optional[str] = None
-    tag_ids: Optional[List[str]] = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+    note: str | None = None
+    bookmark_type: str | None = None
+    category_id: str | None = None
+    tag_ids: list[str] | None = None
 
 
 class BookmarkResponse(Schema):
     id: UUID
     url: str
-    title: Optional[str] = None
-    description: Optional[str] = None
-    thumbnail_url: Optional[str] = None
-    note: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
+    thumbnail_url: str | None = None
+    note: str | None = None
     bookmark_type: str
-    category_id: Optional[UUID] = None
-    tags: List[TagResponse] = []
+    category_id: UUID | None = None
+    tags: list[TagResponse] = []
     is_pinned: bool = False
     is_favorited: bool = False
     created_at: datetime
@@ -56,9 +56,7 @@ class BookmarkResponse(Schema):
 
 def _build_bookmark_response(bookmark: Bookmark) -> BookmarkResponse:
     state = getattr(bookmark, "user_state", None)
-    tag_list = [
-        TagResponse(id=t.id, name=t.name, color=t.color) for t in bookmark.tags.all()
-    ]
+    tag_list = [TagResponse(id=t.id, name=t.name, color=t.color) for t in bookmark.tags.all()]
     return BookmarkResponse(
         id=bookmark.id,
         url=bookmark.url,
@@ -75,20 +73,16 @@ def _build_bookmark_response(bookmark: Bookmark) -> BookmarkResponse:
     )
 
 
-@router.get("", response=List[BookmarkResponse])
+@router.get("", response=list[BookmarkResponse])
 def get_bookmarks(
     request,
-    bookmark_type: Optional[str] = None,
-    category_id: Optional[UUID] = None,
-    tag_id: Optional[UUID] = None,
-    is_pinned: Optional[bool] = None,
-    is_favorited: Optional[bool] = None,
+    bookmark_type: str | None = None,
+    category_id: UUID | None = None,
+    tag_id: UUID | None = None,
+    is_pinned: bool | None = None,
+    is_favorited: bool | None = None,
 ):
-    qs = (
-        Bookmark.objects.filter(user=request.auth)
-        .select_related("category", "user_state")
-        .prefetch_related("tags")
-    )
+    qs = Bookmark.objects.filter(user=request.auth).select_related("category", "user_state").prefetch_related("tags")
 
     if bookmark_type:
         qs = qs.filter(bookmark_type=bookmark_type)
@@ -182,9 +176,7 @@ def update_bookmark(request, bookmark_id: UUID, payload: BookmarkUpdate):
             bookmark.category = None
         else:
             try:
-                bookmark.category = Category.objects.get(
-                    id=payload.category_id, user=request.auth
-                )
+                bookmark.category = Category.objects.get(id=payload.category_id, user=request.auth)
             except (Category.DoesNotExist, ValueError):
                 raise HttpError(400, "Category not found")
 
@@ -208,9 +200,7 @@ def delete_bookmark(request, bookmark_id: UUID):
 
 @router.post("/{bookmark_id}/pin")
 def pin_bookmark(request, bookmark_id: UUID):
-    state, _ = BookmarkUserState.objects.get_or_create(
-        user=request.auth, bookmark_id=bookmark_id
-    )
+    state, _ = BookmarkUserState.objects.get_or_create(user=request.auth, bookmark_id=bookmark_id)
     state.is_pinned = True
     state.save(update_fields=["is_pinned", "updated_at"])
     return {"status": "ok"}
@@ -218,9 +208,7 @@ def pin_bookmark(request, bookmark_id: UUID):
 
 @router.post("/{bookmark_id}/unpin")
 def unpin_bookmark(request, bookmark_id: UUID):
-    state, _ = BookmarkUserState.objects.get_or_create(
-        user=request.auth, bookmark_id=bookmark_id
-    )
+    state, _ = BookmarkUserState.objects.get_or_create(user=request.auth, bookmark_id=bookmark_id)
     state.is_pinned = False
     state.save(update_fields=["is_pinned", "updated_at"])
     return {"status": "ok"}
@@ -228,9 +216,7 @@ def unpin_bookmark(request, bookmark_id: UUID):
 
 @router.post("/{bookmark_id}/favorite")
 def favorite_bookmark(request, bookmark_id: UUID):
-    state, _ = BookmarkUserState.objects.get_or_create(
-        user=request.auth, bookmark_id=bookmark_id
-    )
+    state, _ = BookmarkUserState.objects.get_or_create(user=request.auth, bookmark_id=bookmark_id)
     state.is_favorited = True
     state.save(update_fields=["is_favorited", "updated_at"])
     return {"status": "ok"}
@@ -238,9 +224,7 @@ def favorite_bookmark(request, bookmark_id: UUID):
 
 @router.post("/{bookmark_id}/unfavorite")
 def unfavorite_bookmark(request, bookmark_id: UUID):
-    state, _ = BookmarkUserState.objects.get_or_create(
-        user=request.auth, bookmark_id=bookmark_id
-    )
+    state, _ = BookmarkUserState.objects.get_or_create(user=request.auth, bookmark_id=bookmark_id)
     state.is_favorited = False
     state.save(update_fields=["is_favorited", "updated_at"])
     return {"status": "ok"}
