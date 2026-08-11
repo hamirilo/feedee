@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 from datetime import UTC, datetime
 from uuid import UUID
@@ -101,10 +102,8 @@ def ingest_articles(request, payload: list[IngestArticlePayload]):
 
         published_dt = None
         if item.published_at:
-            try:
+            with contextlib.suppress(ValueError):
                 published_dt = datetime.fromisoformat(item.published_at.replace("Z", "+00:00"))
-            except ValueError:
-                pass
 
         article = Article.objects.create(
             feed=feed,

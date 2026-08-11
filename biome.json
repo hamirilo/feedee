@@ -1,4 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "extends": ["./hamirilo-platform/standards/configs/shared_biome.json"]
+  "extends": ["./hamirilo-platform/standards/configs/shared_biome.json"],
+  "files": {
+    "ignore": [
+      "hamirilo-platform",
+      "frontend/.next",
+      "frontend",
+      ".next",
+      "node_modules",
+      "staticfiles",
+      "media"
+    ]
+  }
 }

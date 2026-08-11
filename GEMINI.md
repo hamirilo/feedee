@@ -34,4 +34,4 @@ AIエージェントおよび開発者は、タスクランナー `just` およ�
 - [x] Phase 1: AIルールの同期 (`just sync-platform`)
 - [x] Phase 2: 品質管理ツールチェーンの組み込み (`just check`)
 - [x] Phase 3: セキュリティ規約・.env化
-- [ ] Phase 4: アプリ構造整理・@hamirilo/ui 化
+- [x] Phase 4: アプリ構造整理・@hamirilo/ui 化

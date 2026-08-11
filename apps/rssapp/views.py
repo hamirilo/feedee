@@ -622,7 +622,9 @@ def _build_article_list_context(request, base_qs, feed_name_fn=None):
         )
 
     if feed_name_fn is None:
-        feed_name_fn = lambda a: a.feed.name if a.feed else ""
+
+        def feed_name_fn(a):
+            return a.feed.name if a.feed else ""
 
     article_cards = []
     for article in page_obj.object_list:

@@ -45,4 +45,4 @@ cases = {
 
 for name, html in cases.items():
     r = nh3.clean(html, tags=tags, attributes=attrs, link_rel=None)
-    print(f"{name}: {repr(r)}")
+    print(f"{name}: {r!r}")
