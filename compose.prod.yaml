@@ -34,6 +34,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      secrets:
+        - github_token
     command: >
       sh -c "uv run python manage.py migrate && uv run python manage.py create_admin_user && uv run gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
@@ -74,3 +76,7 @@ services:
 volumes:
   postgres_data:
   frontend_node_modules:
+
+secrets:
+  github_token:
+    environment: GITHUB_TOKEN
