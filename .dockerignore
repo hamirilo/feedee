@@ -7,10 +7,16 @@ __pycache__
 db.sqlite3
 staticfiles/
 node_modules/
+**/node_modules/
+frontend/.next/
+frontend/out/
+.pytest_cache/
+.ruff_cache/
+backend/.venv/
+backend/db.sqlite3*
 bin/
 *.egg-info
 .idea/
 .vscode/
 README.md
 hamirilo-platform
-

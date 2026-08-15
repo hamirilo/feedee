@@ -103,6 +103,68 @@ def subscribe_feed(request, payload: FeedSubscribeRequest):
     )
 
 
+@router.get("/feeds/articles", response=list[ArticleResponse])
+def get_articles(
+    request,
+    is_read: bool | None = None,
+    is_favorited: bool | None = None,
+    feed_id: UUID | None = None,
+    category_id: UUID | None = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    sub_feed_ids = Subscription.objects.filter(user=request.auth).values_list("feed_id", flat=True)
+    if category_id:
+        sub_feed_ids = Subscription.objects.filter(user=request.auth, category_id=category_id).values_list(
+            "feed_id", flat=True
+        )
+
+    if feed_id:
+        sub_feed_ids = [fid for fid in sub_feed_ids if fid == feed_id]
+
+    articles = (
+        Article.objects.filter(feed_id__in=sub_feed_ids).select_related("feed").order_by("-published_at", "-created_at")
+    )
+    states = {
+        st.article_id: st
+        for st in ArticleUserState.objects.filter(
+            user=request.auth, article_id__in=articles.values_list("id", flat=True)
+        )
+    }
+
+    results = []
+    for art in articles:
+        st = states.get(art.id)
+        art_read = st.is_read if st else False
+        art_fav = st.is_favorited if st else False
+
+        if is_read is not None and art_read != is_read:
+            continue
+        if is_favorited is not None and art_fav != is_favorited:
+            continue
+
+        results.append(
+            ArticleResponse(
+                id=art.id,
+                feed_id=art.feed.id,
+                feed_title=art.feed.title,
+                url=art.url,
+                title=art.title,
+                summary=art.summary,
+                content=art.content,
+                thumbnail_url=art.thumbnail_url,
+                published_at=art.published_at,
+                is_read=art_read,
+                is_favorited=art_fav,
+            )
+        )
+
+        if len(results) >= limit:
+            break
+
+    return results[offset : offset + limit] if offset > 0 else results
+
+
 @router.delete("/feeds/{feed_id}", response={204: None})
 def unsubscribe_feed(request, feed_id: UUID):
     try:
@@ -144,71 +206,6 @@ def update_subscription(request, feed_id: UUID, payload: FeedUpdate):
         category_id=sub.category.id if sub.category else None,
         order=sub.order,
     )
-
-
-@router.get("/feeds/articles", response=list[ArticleResponse])
-def get_articles(
-    request,
-    is_read: bool | None = None,
-    is_favorited: bool | None = None,
-    feed_id: UUID | None = None,
-    category_id: UUID | None = None,
-    limit: int = 50,
-    offset: int = 0,
-):
-    # Filter user subscribed feeds
-    sub_feed_ids = Subscription.objects.filter(user=request.auth).values_list("feed_id", flat=True)
-    if category_id:
-        sub_feed_ids = Subscription.objects.filter(user=request.auth, category_id=category_id).values_list(
-            "feed_id", flat=True
-        )
-
-    if feed_id:
-        sub_feed_ids = [fid for fid in sub_feed_ids if fid == feed_id]
-
-    articles = (
-        Article.objects.filter(feed_id__in=sub_feed_ids).select_related("feed").order_by("-published_at", "-created_at")
-    )
-
-    # Fetch states for user
-    states = {
-        st.article_id: st
-        for st in ArticleUserState.objects.filter(
-            user=request.auth, article_id__in=articles.values_list("id", flat=True)
-        )
-    }
-
-    results = []
-    for art in articles:
-        st = states.get(art.id)
-        art_read = st.is_read if st else False
-        art_fav = st.is_favorited if st else False
-
-        if is_read is not None and art_read != is_read:
-            continue
-        if is_favorited is not None and art_fav != is_favorited:
-            continue
-
-        results.append(
-            ArticleResponse(
-                id=art.id,
-                feed_id=art.feed.id,
-                feed_title=art.feed.title,
-                url=art.url,
-                title=art.title,
-                summary=art.summary,
-                content=art.content,
-                thumbnail_url=art.thumbnail_url,
-                published_at=art.published_at,
-                is_read=art_read,
-                is_favorited=art_fav,
-            )
-        )
-
-        if len(results) >= limit:
-            break
-
-    return results[offset : offset + limit] if offset > 0 else results
 
 
 @router.post("/feeds/articles/{article_id}/read")

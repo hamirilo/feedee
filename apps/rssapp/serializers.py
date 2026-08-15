@@ -25,7 +25,7 @@ class FeedSerializer(serializers.ModelSerializer):
 
 class FeedReorderSerializer(serializers.Serializer):
     feed_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1),
+        child=serializers.UUIDField(),
         allow_empty=False,
     )
 

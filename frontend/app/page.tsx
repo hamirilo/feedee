@@ -585,6 +585,7 @@ export default function Dashboard() {
           setNewCategoryScope={setNewCategoryScope}
           setShowAddCategory={setShowAddCategory}
           setShowAddTag={setShowAddTag}
+          setShowAddBookmark={setShowAddBookmark}
           setShowAddFeed={setShowAddFeed}
           setEditingFeedId={setEditingFeedId}
           setEditFeedDisplayName={setEditFeedDisplayName}
@@ -617,6 +618,7 @@ export default function Dashboard() {
             setNewCategoryScope={setNewCategoryScope}
             setShowAddCategory={setShowAddCategory}
             setShowAddTag={setShowAddTag}
+            setShowAddBookmark={setShowAddBookmark}
             setShowAddFeed={setShowAddFeed}
             setEditingFeedId={setEditingFeedId}
             setEditFeedDisplayName={setEditFeedDisplayName}

@@ -76,6 +76,7 @@ export interface SidebarProps {
   setNewCategoryScope: (scope: "rss" | "bookmark") => void;
   setShowAddCategory: (show: boolean) => void;
   setShowAddTag: (show: boolean) => void;
+  setShowAddBookmark: (show: boolean) => void;
   setShowAddFeed: (show: boolean) => void;
   setEditingFeedId: (id: string | null) => void;
   setEditFeedDisplayName: (name: string) => void;
@@ -104,6 +105,7 @@ export function Sidebar({
   setNewCategoryScope,
   setShowAddCategory,
   setShowAddTag,
+  setShowAddBookmark,
   setShowAddFeed,
   setEditingFeedId,
   setEditFeedDisplayName,
@@ -211,6 +213,15 @@ export function Sidebar({
               ブックマーク
             </span>
             <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowAddBookmark(true)}
+                className="h-6 w-6 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                title="ブックマーク追加"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

@@ -8,7 +8,7 @@ RUN --mount=type=secret,id=github_token \
     if [ -f /run/secrets/github_token ]; then \
       echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/github_token)" >> .npmrc; \
     fi && \
-    npm ci && \
+    if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
     sed -i '/authToken/d' .npmrc
 
 COPY vite.config.js tailwind.config.js postcss.config.js ./

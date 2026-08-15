@@ -2,6 +2,7 @@ from datetime import datetime
 from uuid import UUID
 
 from django.db.models import Q
+from django.utils import timezone
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
@@ -90,6 +91,15 @@ def add_to_inbox(request, payload: ReadingItemCreate):
     return 201, item
 
 
+@router.get("/inbox/archived", response=list[ReadingItemResponse])
+def get_archived_items(request, q: str | None = None):
+    qs = ReadingItem.objects.filter(user=request.auth, is_archived=True)
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(url__icontains=q))
+    qs = qs.order_by("-archived_at", "-created_at")
+    return list(qs)
+
+
 @router.delete("/inbox/{item_id}", response={204: None})
 def delete_inbox_item(request, item_id: UUID):
     try:
@@ -156,15 +166,6 @@ def unsnooze_to_inbox(request, item_id: UUID):
     return inbox_item
 
 
-@router.get("/inbox/archived", response=list[ReadingItemResponse])
-def get_archived_items(request, q: str | None = None):
-    qs = ReadingItem.objects.filter(user=request.auth, is_archived=True)
-    if q:
-        qs = qs.filter(Q(title__icontains=q) | Q(url__icontains=q))
-    qs = qs.order_by("-archived_at", "-created_at")
-    return list(qs)
-
-
 @router.post("/inbox/{item_id}/archive", response=ReadingItemResponse)
 def archive_inbox_item(request, item_id: UUID):
     try:
@@ -173,7 +174,7 @@ def archive_inbox_item(request, item_id: UUID):
         raise HttpError(404, "Item not found")
 
     item.is_archived = True
-    item.archived_at = datetime.now()
+    item.archived_at = timezone.now()
     item.save(update_fields=["is_archived", "archived_at", "updated_at"])
     return item
 

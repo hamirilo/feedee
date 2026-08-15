@@ -12,15 +12,15 @@ from .views import (
 urlpatterns = [
     path("today/", feeds_page_view, name="rss-dashboard"),
     path("feeds/", feeds_page_view, name="feeds-page"),
-    path("feeds/<int:feed_id>/", feed_articles_view, name="feed-articles"),
-    path("articles/<int:article_id>/reader/", reader_view, name="article-reader"),
+    path("feeds/<uuid:feed_id>/", feed_articles_view, name="feed-articles"),
+    path("articles/<uuid:article_id>/reader/", reader_view, name="article-reader"),
     path(
-        "articles/<int:article_id>/state/<str:state_field>/toggle/",
+        "articles/<uuid:article_id>/state/<str:state_field>/toggle/",
         article_state_toggle_view,
         name="article-state-toggle",
     ),
     path(
-        "articles/<int:article_id>/save/",
+        "articles/<uuid:article_id>/save/",
         save_article_as_bookmark_view,
         name="article-save",
     ),

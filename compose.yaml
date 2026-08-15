@@ -24,9 +24,10 @@ services:
       - "3010:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy
 
 
   backend:
@@ -36,7 +37,7 @@ services:
       secrets:
         - github_token
     command: >
-      sh -c "uv run python manage.py migrate && uv run python manage.py create_admin_user && uv run python manage.py runserver 0.0.0.0:8000"
+      sh -c "python manage.py migrate && python manage.py create_admin_user && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - /app/.venv
@@ -51,10 +52,16 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin-password}
       - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
-      - SECRET_KEY=${FASTAPI_SECRET_KEY:-change-me-to-a-random-secret-key}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-to-a-random-secret-key}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
   rss-worker:
     build:
@@ -70,7 +77,8 @@ services:
       - no_proxy=localhost,127.0.0.1,backend,db
       - NO_PROXY=localhost,127.0.0.1,backend,db
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
@@ -80,4 +88,3 @@ volumes:
 secrets:
   github_token:
     environment: GITHUB_TOKEN
-

@@ -51,6 +51,6 @@ urlpatterns = [
     # Feeds (detail views)
     path("feeds/opml/export/", export_opml_view, name="feeds-opml-export"),
     path("feeds/opml/import/", import_opml_view, name="feeds-opml-import"),
-    path("feeds/<int:feed_id>/update/", feed_update_view, name="feed-update"),
+    path("feeds/<uuid:feed_id>/update/", feed_update_view, name="feed-update"),
     path("feeds/refresh-all/", refresh_all_feeds_view, name="feeds-refresh-all"),
 ]

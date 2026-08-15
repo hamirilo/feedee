@@ -1,8 +1,10 @@
 import uuid
 
+import nh3
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 
 
 class Category(models.Model):
@@ -24,6 +26,9 @@ class Category(models.Model):
         choices=Scope.choices,
         default=Scope.RSS,
     )
+    # Kept while the template UI is migrated to ``scope``.  A number of the
+    # existing forms still use the broader legacy values (feed/bookmark/both).
+    content_type = models.CharField(max_length=20, default="both")
     parent = models.ForeignKey(
         "self",
         on_delete=models.CASCADE,
@@ -67,6 +72,11 @@ class Tag(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name, allow_unicode=True)
+        super().save(*args, **kwargs)
+
 
 class Feed(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -82,6 +92,11 @@ class Feed(models.Model):
     is_public = models.BooleanField(default=False)
     last_fetched_at = models.DateTimeField(null=True, blank=True)
     fetch_error = models.TextField(null=True, blank=True)
+    last_success_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+    consecutive_failures = models.PositiveIntegerField(default=0)
+    next_fetch_at = models.DateTimeField(default=timezone.now, db_index=True)
+    fetch_interval_minutes = models.PositiveIntegerField(default=60)
     etag = models.CharField(max_length=255, null=True, blank=True)
     last_modified = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -135,6 +150,39 @@ class Subscription(models.Model):
 
 
 class Article(models.Model):
+    ALLOWED_TAGS = {
+        "p",
+        "div",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "a",
+        "img",
+        "strong",
+        "em",
+        "u",
+        "br",
+        "ul",
+        "ol",
+        "li",
+        "blockquote",
+        "code",
+        "pre",
+        "table",
+        "tr",
+        "td",
+        "th",
+    }
+    ALLOWED_ATTRIBUTES = {
+        "a": {"href", "title", "target"},
+        "img": {"src", "alt", "title", "width", "height"},
+        "table": {"border", "cellpadding", "cellspacing"},
+        "*": {"class"},
+    }
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     feed = models.ForeignKey(
         Feed,
@@ -154,6 +202,10 @@ class Article(models.Model):
     content = models.TextField(null=True, blank=True)
     author = models.CharField(max_length=500, null=True, blank=True)
     thumbnail_url = models.URLField(max_length=2048, null=True, blank=True)
+    image_url = models.URLField(max_length=2048, blank=True, default="")
+    content_source = models.CharField(max_length=20, default="summary")
+    extraction_status = models.CharField(max_length=20, default="pending")
+    extracted_at = models.DateTimeField(null=True, blank=True)
     published_at = models.DateTimeField(null=True, blank=True, db_index=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -173,7 +225,20 @@ class Article(models.Model):
             self.hash = self.url_hash
         elif not self.url_hash and self.hash:
             self.url_hash = self.hash
+        if self.content:
+            self.content = self._sanitize_html(self.content)
+        if self.summary:
+            self.summary = self._sanitize_html(self.summary)
         super().save(*args, **kwargs)
+
+    @staticmethod
+    def _sanitize_html(html: str) -> str:
+        return nh3.clean(
+            html,
+            tags=Article.ALLOWED_TAGS,
+            attributes=Article.ALLOWED_ATTRIBUTES,
+            link_rel=None,
+        )
 
     def __str__(self) -> str:
         return self.title or self.url or self.link
@@ -193,6 +258,8 @@ class ArticleUserState(models.Model):
     )
     is_read = models.BooleanField(default=False)
     is_favorited = models.BooleanField(default=False)
+    is_favorite = models.BooleanField(default=False, db_index=True)
+    is_read_later = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -202,6 +269,23 @@ class ArticleUserState(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} article_state {self.article_id}"
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            fields = set(update_fields)
+            if "is_favorited" in fields and "is_favorite" not in fields:
+                self.is_favorite = self.is_favorited
+                fields.add("is_favorite")
+            elif "is_favorite" in fields:
+                self.is_favorited = self.is_favorite
+                fields.add("is_favorited")
+            kwargs["update_fields"] = fields
+        elif self.is_favorite != self.is_favorited:
+            value = self.is_favorite or self.is_favorited
+            self.is_favorite = value
+            self.is_favorited = value
+        super().save(*args, **kwargs)
 
 
 class ReadingItem(models.Model):
@@ -288,10 +372,19 @@ class Bookmark(models.Model):
         default=Type.CONTENT,
     )
     url = models.URLField(max_length=2048)
+    normalized_url = models.URLField(max_length=2048, blank=True, default="", db_index=True)
+    hash = models.CharField(max_length=64, blank=True, default="")
     title = models.CharField(max_length=1000, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     thumbnail_url = models.URLField(max_length=2048, null=True, blank=True)
     note = models.TextField(null=True, blank=True)
+    source_article = models.ForeignKey(
+        Article,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bookmarks",
+    )
     tags = models.ManyToManyField(Tag, blank=True, related_name="bookmarks", db_table="bookmark_tags")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -302,6 +395,15 @@ class Bookmark(models.Model):
 
     def __str__(self) -> str:
         return self.title or self.url
+
+    def save(self, *args, **kwargs):
+        from .utils import generate_bookmark_hash, normalize_url
+
+        if not self.normalized_url and self.url:
+            self.normalized_url = normalize_url(self.url)
+        if not self.hash and self.normalized_url:
+            self.hash = generate_bookmark_hash(self.normalized_url)
+        super().save(*args, **kwargs)
 
 
 class BookmarkUserState(models.Model):
@@ -318,6 +420,9 @@ class BookmarkUserState(models.Model):
     )
     is_pinned = models.BooleanField(default=False)
     is_favorited = models.BooleanField(default=False)
+    is_favorite = models.BooleanField(default=False, db_index=True)
+    is_read_later = models.BooleanField(default=False, db_index=True)
+    is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -327,6 +432,23 @@ class BookmarkUserState(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user} bookmark_state {self.bookmark_id}"
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            fields = set(update_fields)
+            if "is_favorited" in fields and "is_favorite" not in fields:
+                self.is_favorite = self.is_favorited
+                fields.add("is_favorite")
+            elif "is_favorite" in fields:
+                self.is_favorited = self.is_favorite
+                fields.add("is_favorited")
+            kwargs["update_fields"] = fields
+        elif self.is_favorite != self.is_favorited:
+            value = self.is_favorite or self.is_favorited
+            self.is_favorite = value
+            self.is_favorited = value
+        super().save(*args, **kwargs)
 
 
 class ExtractionTask(models.Model):

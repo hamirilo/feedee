@@ -1,5 +1,6 @@
 from datetime import timedelta
 from unittest.mock import patch
+from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -14,16 +15,17 @@ from .models import (
     ArticleUserState,
     Bookmark,
     BookmarkUserState,
+    ExtractionTask,
     Feed,
     UserProfile,
 )
 
 
 class AuthenticationFlowTests(TestCase):
-    def test_homepage_redirects_anonymous_to_login(self):
+    def test_homepage_redirects_to_bookmarks(self):
         response = self.client.get(reverse("homepage"))
 
-        self.assertRedirects(response, f"{reverse('login')}?next={reverse('homepage')}")
+        self.assertRedirects(response, reverse("bookmarks-page"), fetch_redirect_response=False)
 
     def test_login_page_shows_register_link(self):
         response = self.client.get(reverse("login"))
@@ -59,7 +61,7 @@ class AuthenticationFlowTests(TestCase):
             follow=True,
         )
 
-        self.assertRedirects(response, reverse("homepage"))
+        self.assertRedirects(response, reverse("bookmarks-page"))
         user = get_user_model().objects.get(email="newuser@example.com")
         self.assertEqual(user.username, "newuser@example.com")
         self.assertTrue(response.context["user"].is_authenticated)
@@ -380,7 +382,7 @@ class ArticleUserStateTests(TestCase):
         state.refresh_from_db()
         self.assertEqual(state.is_pinned, False)
 
-    def test_homepage_shows_dashboard_for_authenticated_user(self):
+    def test_homepage_redirects_authenticated_user_to_bookmarks(self):
         self.client.force_login(self.user)
         bookmark = Bookmark.objects.create(
             user=self.user,
@@ -397,8 +399,7 @@ class ArticleUserStateTests(TestCase):
 
         response = self.client.get(reverse("homepage"))
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Overview")
+        self.assertRedirects(response, reverse("bookmarks-page"))
 
     def test_web_toggle_anonymous_does_not_create_state_and_shows_error(self):
         toggle_url = reverse("article-state-toggle", args=[self.article.id, "is_read_later"])
@@ -455,7 +456,7 @@ class FeedArticleBindingTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual([item["id"] for item in payload], [feed_first.id, feed_last.id])
+        self.assertEqual([item["id"] for item in payload], [str(feed_first.id), str(feed_last.id)])
 
     def test_feed_reorder_updates_display_order(self):
         feed_a = Feed.objects.create(name="Feed A", url="https://example.com/a.xml")
@@ -507,6 +508,7 @@ class FeedArticleBindingTests(TestCase):
         self.assertIn(response.status_code, (401, 403))
 
     def test_dashboard_hides_legacy_feedless_articles(self):
+        self.client.force_login(self.user)
         feed = Feed.objects.create(name="Current Feed", url="https://example.com/new.xml")
         Article.objects.create(
             feed=feed,
@@ -631,7 +633,7 @@ class FullTextExtractionMVPTests(TestCase):
 
     @override_settings(FULL_TEXT_EXTRACTION_ENABLED=True)
     @patch("apps.rssapp.views.extract_article_content")
-    def test_bulk_ingest_skips_inline_extraction_to_avoid_timeouts(self, mock_extract):
+    def test_bulk_ingest_queues_extraction_to_avoid_inline_timeouts(self, mock_extract):
         mock_extract.return_value = {
             "content": "",
             "source": "summary",
@@ -662,10 +664,8 @@ class FullTextExtractionMVPTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(Article.objects.filter(feed=self.feed).count(), 2)
-        self.assertEqual(
-            Article.objects.filter(content_source="summary", extraction_status="skipped").count(),
-            2,
-        )
+        self.assertEqual(Article.objects.filter(extraction_status="pending").count(), 2)
+        self.assertEqual(ExtractionTask.objects.filter(status="pending").count(), 2)
         mock_extract.assert_not_called()
 
 
@@ -794,7 +794,7 @@ class FeedArticlesViewTests(TestCase):
         self.assertNotContains(response, "Article B1")
 
     def test_feed_articles_view_returns_404_for_nonexistent_feed(self):
-        response = self.client.get(reverse("feed-articles", args=[9999]))
+        response = self.client.get(reverse("feed-articles", args=[uuid4()]))
 
         self.assertEqual(response.status_code, 404)
 
@@ -959,7 +959,7 @@ class FeedFetchHealthTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertEqual([item["id"] for item in payload], [due_feed.id])
+        self.assertEqual([item["id"] for item in payload], [str(due_feed.id)])
         self.assertEqual(payload[0]["etag"], '"abc"')
         self.assertEqual(payload[0]["last_modified"], "Wed, 21 Oct 2015 07:28:00 GMT")
 

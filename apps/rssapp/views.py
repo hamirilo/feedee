@@ -1519,7 +1519,7 @@ def bookmark_list_view(request):
         bookmarks_qs = bookmarks_qs.filter(tags__slug=tag_slug)
     if category_id:
         try:
-            cat_id = int(category_id)
+            cat_id = category_id
             bookmarks_qs = bookmarks_qs.filter(category_id=cat_id)
         except (ValueError, TypeError):
             pass
@@ -1845,7 +1845,7 @@ def bookmark_category_reorder_view(request):
         category_ids = data.get("category_ids", [])
 
         for order, cat_id in enumerate(category_ids):
-            BookmarkCategory.objects.filter(id=int(cat_id), user=request.user).update(display_order=order)
+            BookmarkCategory.objects.filter(id=cat_id, user=request.user).update(display_order=order)
 
         return Response({"status": "ok"}, status=status.HTTP_200_OK)
     except Exception as e:
@@ -2079,7 +2079,7 @@ def bookmarks_page_view(request):
         bookmarks_qs = bookmarks_qs.filter(tags__slug=tag_slug)
     if category_id:
         try:
-            cat_id = int(category_id)
+            cat_id = category_id
             bookmarks_qs = bookmarks_qs.filter(category_id=cat_id)
         except (ValueError, TypeError):
             pass

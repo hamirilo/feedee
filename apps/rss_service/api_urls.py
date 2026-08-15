@@ -16,14 +16,14 @@ urlpatterns = [
     path("feeds/", FeedListView.as_view(), name="feed-list"),
     path("feeds/discover/", FeedDiscoverView.as_view(), name="feed-discover"),
     path(
-        "feeds/<int:feed_id>/fetch-status/",
+        "feeds/<uuid:feed_id>/fetch-status/",
         FeedFetchStatusView.as_view(),
         name="feed-fetch-status",
     ),
     path("feeds/reorder/", FeedReorderView.as_view(), name="feed-reorder"),
     path("articles/ingest/", ArticleIngestView.as_view(), name="article-ingest"),
     path(
-        "articles/<int:article_id>/state/",
+        "articles/<uuid:article_id>/state/",
         ArticleUserStateView.as_view(),
         name="article-user-state",
     ),

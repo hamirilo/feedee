@@ -638,19 +638,34 @@ export function ContentArea({
         )}
 
         {/* SECTIONS: BOOKMARKS */}
-        {(activeSection === "bookmarks_content" || activeSection === "bookmarks_resource") && (
+        {(
+          activeSection === "bookmarks_content" ||
+          activeSection === "bookmarks_resource" ||
+          activeSection === "pinned" ||
+          activeSection === "favorites"
+        ) && (
           <div className="max-w-6xl mx-auto space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {activeSection === "bookmarks_content" ? "コンテンツブックマーク" : "リソースディレクトリ"}
+                  {activeSection === "bookmarks_content"
+                    ? "コンテンツブックマーク"
+                    : activeSection === "bookmarks_resource"
+                      ? "リソースディレクトリ"
+                      : activeSection === "pinned"
+                        ? "ピン留め"
+                        : "お気に入り"}
                   {activeCategory && <span className="text-lg font-bold text-gray-400 dark:text-gray-500 ml-2">/ {activeCategory.name}</span>}
                   {activeTag && <span className="text-lg font-bold text-gray-400 dark:text-gray-500 ml-2">/ #{activeTag.name}</span>}
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
                   {activeSection === "bookmarks_content"
                     ? "保存した技術コラム、ニュース、長文記事などの管理"
-                    : "開発ツール、ライブラリ、Webサイトのディレクトリ管理"}
+                    : activeSection === "bookmarks_resource"
+                      ? "開発ツール、ライブラリ、Webサイトのディレクトリ管理"
+                      : activeSection === "pinned"
+                        ? "よく使うブックマークをまとめて表示"
+                        : "お気に入りの記事とブックマーク"}
                 </p>
               </div>
 
@@ -678,14 +693,14 @@ export function ContentArea({
               </div>
             </div>
 
-            {bookmarks.length === 0 ? (
+            {bookmarks.length === 0 && (activeSection !== "favorites" || rssItems.length === 0) ? (
               <div className="text-center py-20 bg-white/50 dark:bg-gray-900/10 border border-dashed border-gray-200 dark:border-gray-800 rounded-2xl p-10 transition-colors duration-200">
                 <Bookmark className="h-10 w-10 text-gray-400 dark:text-gray-600 mb-4" />
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
                   {bookmarksSearchQuery ? "条件にマッチするブックマークが見つかりません。" : "ブックマークはありません。"}
                 </p>
               </div>
-            ) : (
+            ) : bookmarks.length > 0 ? (
               <motion.div
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 variants={containerVariants}
@@ -819,6 +834,30 @@ export function ContentArea({
                   </motion.div>
                 ))}
               </motion.div>
+            ) : null}
+
+            {activeSection === "favorites" && rssItems.length > 0 && (
+              <section className="space-y-3">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">お気に入りの記事</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {rssItems.map((article) => (
+                    <button
+                      key={article.id}
+                      type="button"
+                      onClick={() => setSelectedArticle(article)}
+                      className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-rose-300 dark:border-gray-800 dark:bg-gray-900/30 dark:hover:border-rose-800"
+                    >
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{article.feed_title || "RSS Feed"}</span>
+                      <h3 className="mt-1 line-clamp-2 font-bold text-gray-900 dark:text-white">{article.title || article.url}</h3>
+                      {article.summary && (
+                        <p className="mt-2 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">
+                          {article.summary.replace(/<[^>]*>/g, "").trim()}
+                        </p>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
             )}
           </div>
         )}

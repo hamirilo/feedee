@@ -4,7 +4,7 @@ from urllib.parse import unquote, urlparse
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-feedee-dev-key")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-feedee-development-key")
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = [
     host.strip()
