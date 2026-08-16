@@ -1,20 +1,20 @@
 # ---- Frontend build stage: Vite + Tailwind ----
-FROM node:22-slim AS frontend
+FROM oven/bun:1-slim AS frontend
 
 WORKDIR /app
 
-COPY package.json package-lock.json* .npmrc ./
+COPY package.json bun.lock .npmrc ./
 RUN --mount=type=secret,id=github_token \
     if [ -f /run/secrets/github_token ]; then \
       echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/github_token)" >> .npmrc; \
     fi && \
-    if [ -f package-lock.json ]; then npm ci; else npm install; fi && \
+    bun install --frozen-lockfile && \
     sed -i '/authToken/d' .npmrc
 
 COPY vite.config.js tailwind.config.js postcss.config.js ./
 COPY frontend/ frontend/
 COPY templates/ templates/
-RUN npm run build
+RUN bun run build
 
 # ---- Python dependency stage ----
 FROM python:3.13-slim AS builder
@@ -23,7 +23,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 RUN uv pip install --system --no-cache -r pyproject.toml
 
 # ---- Runtime stage ----
