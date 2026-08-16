@@ -11,7 +11,7 @@ RUN --mount=type=secret,id=github_token \
     bun install --frozen-lockfile && \
     sed -i '/authToken/d' .npmrc
 
-COPY vite.config.js tailwind.config.js postcss.config.js ./
+COPY vite.config.js tailwind.config.js ./
 COPY frontend/ frontend/
 COPY templates/ templates/
 RUN bun run build
