@@ -112,8 +112,9 @@ prod-logs:
     @POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dummy} WORKER_API_TOKEN=${WORKER_API_TOKEN:-dummy} {{compose_prod}} logs -f
 
 # Build production images
-prod-build: prod-check-env
-    {{compose_prod}} build
+# Show production container status
+prod-ps: prod-check-env
+    {{compose_prod}} ps
 
 # Run database migrations in production environment
 prod-migrate: prod-check-env
@@ -126,6 +127,29 @@ prod-superuser: prod-check-env
 # Open interactive shell in production environment
 prod-shell: prod-check-env
     {{compose_prod}} exec backend python manage.py shell
+
+# ===================================================================
+#  Remote Deployment (macmini / サーバー運用)
+# ===================================================================
+
+deploy_host := env_var_or_default("FEEDEE_DEPLOY_HOST", "macmini")
+deploy_dir  := env_var_or_default("FEEDEE_DEPLOY_DIR", "~/dev/feedee")
+
+# Deploy to remote server (scripts/deploy.sh)
+deploy:
+    ssh {{deploy_host}} "zsh -l -c 'bash {{deploy_dir}}/scripts/deploy.sh'"
+
+# Stop remote production environment
+remote-down:
+    ssh {{deploy_host}} "zsh -l -c 'cd {{deploy_dir}} && docker compose --env-file .env -f compose.prod.yaml down'"
+
+# Check remote container status
+remote-ps:
+    ssh {{deploy_host}} "zsh -l -c 'cd {{deploy_dir}} && docker compose --env-file .env -f compose.prod.yaml ps'"
+
+# Tail remote container logs (Ctrl+C to exit)
+remote-logs *services:
+    ssh {{deploy_host}} "zsh -l -c 'cd {{deploy_dir}} && docker compose --env-file .env -f compose.prod.yaml logs -f --tail=200 {{services}}'"
 
 # ===================================================================
 #  Local Development (Direct Execution)

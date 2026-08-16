@@ -1,15 +1,45 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "extends": ["./hamirilo-platform/standards/configs/shared_biome.json"],
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
+    "ignoreUnknown": true,
     "ignore": [
-      "hamirilo-platform",
-      "frontend/.next",
-      "frontend",
-      ".next",
-      "node_modules",
-      "staticfiles",
-      "media"
+      "hamirilo-platform/**",
+      "frontend/.next/**",
+      "frontend/**",
+      ".next/**",
+      "node_modules/**",
+      "staticfiles/**",
+      "media/**",
+      "**/.venv/**",
+      "**/bun.lock",
+      "**/uv.lock"
     ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 100
+  },
+  "organizeImports": {
+    "enabled": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
   }
 }

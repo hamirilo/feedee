@@ -27,8 +27,39 @@ dev = [
 ]
 
 [tool.ruff]
-extend = "hamirilo-platform/standards/configs/shared_ruff.toml"
-extend-exclude = ["hamirilo-platform", "backend", "*/migrations/*", "staticfiles/*", "media/*"]
+target-version = "py313"
+line-length = 120
+exclude = [
+    "backend",
+    "frontend",
+    "hamirilo-platform",
+    "staticfiles",
+    "media",
+    "node_modules",
+    "**/migrations/*.py",
+]
+extend-exclude = [
+    "**/migrations/*.py",
+    "node_modules/**",
+    "staticfiles/**",
+    "media/**",
+    "hamirilo-platform/**",
+    "backend/**",
+    "frontend/**",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",    # Line too long (handled by ruff format)
+    "RUF001",  # Allow ambiguous unicode characters
+    "RUF002",
+    "RUF003",
+    "RUF005",  # Allow list concatenation
+    "RUF012",  # Allow mutable class attributes in Django models
+    "B904",    # Allow raise without from in except blocks
+    "E712",    # Allow equality comparisons to True (useful in SQL expressions)
+]
 
 [tool.ruff.lint.per-file-ignores]
 "config/settings/*.py" = ["F403", "F405"]
