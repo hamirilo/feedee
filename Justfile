@@ -117,15 +117,15 @@ prod-build: prod-check-env
 
 # Run database migrations in production environment
 prod-migrate: prod-check-env
-    {{compose_prod}} exec backend uv run python manage.py migrate
+    {{compose_prod}} exec backend python manage.py migrate
 
 # Create superuser in production environment
 prod-superuser: prod-check-env
-    {{compose_prod}} exec backend uv run python manage.py create_admin_user
+    {{compose_prod}} exec backend python manage.py create_admin_user
 
 # Open interactive shell in production environment
 prod-shell: prod-check-env
-    {{compose_prod}} exec backend uv run python manage.py shell
+    {{compose_prod}} exec backend python manage.py shell
 
 # ===================================================================
 #  Local Development (Direct Execution)
