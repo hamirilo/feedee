@@ -10,7 +10,7 @@ ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get(
         "DJANGO_ALLOWED_HOSTS",
-        "localhost,127.0.0.1,feedee.local,feedee.localhost,web,feedee-web",
+        "localhost,127.0.0.1,10.0.0.100,web,backend,feedee-web",
     ).split(",")
     if host.strip()
 ]
@@ -123,7 +123,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get(
         "CSRF_TRUSTED_ORIGINS",
-        "http://feedee.local,http://feedee.localhost",
+        "http://localhost:8000,http://127.0.0.1:8000,http://10.0.0.100,http://10.0.0.100:8000,http://10.0.0.100:8082",
     ).split(",")
     if origin.strip()
 ]
