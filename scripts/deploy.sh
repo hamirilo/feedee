@@ -7,6 +7,14 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.docker/bin:$PATH"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
 
+# .env が存在する場合は環境変数（GITHUB_TOKEN等）をロード
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
 COMPOSE="docker compose --env-file .env -f compose.prod.yaml"
 
 echo "==> [1/4] Pulling latest code..."
