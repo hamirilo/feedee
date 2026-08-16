@@ -42,6 +42,10 @@ def vite_assets(entry):
 
     manifest = _load_manifest()
     chunk = manifest.get(entry, {})
+    if not chunk and entry.endswith(".js"):
+        chunk = manifest.get(entry[:-3] + ".tsx", {})
+    if not chunk and entry.endswith(".tsx"):
+        chunk = manifest.get(entry[:-4] + ".js", {})
     if not chunk:
         return ""
 

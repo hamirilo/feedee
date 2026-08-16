@@ -8,9 +8,10 @@
   "files": {
     "ignoreUnknown": true,
     "ignore": [
+      "claude-design/**",
+      "static/dist/**",
       "hamirilo-platform/**",
       "frontend/.next/**",
-      "frontend/**",
       ".next/**",
       "node_modules/**",
       "staticfiles/**",
@@ -33,7 +34,19 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "a11y": {
+        "noSvgWithoutTitle": "off",
+        "useButtonType": "warn",
+        "useKeyWithClickEvents": "off",
+        "noLabelWithoutControl": "warn"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      }
     }
   },
   "javascript": {

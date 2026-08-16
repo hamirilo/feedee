@@ -1,293 +1,36 @@
 {% load static vite %}
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Feedee{% endblock %}</title>
+    <title>{% block title %}Feedee — RSS & Bookmark Manager{% endblock %}</title>
     <meta name="csrf-token" content="{{ csrf_token }}">
     <link rel="icon" type="image/svg+xml" href="{% static 'favicon.svg' %}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon.svg' %}">
     <link rel="apple-touch-icon" href="{% static 'favicon.svg' %}">
     {% include "includes/_theme_head.html" %}
-    {% vite_assets "js/main.js" %}
+    {% vite_assets "js/main.tsx" %}
     <link rel="stylesheet" href="{% static 'css/article-prose.css' %}">
     {% block extra_head %}{% endblock %}
 </head>
-<body class="h-full bg-gray-50 text-gray-900 font-sans antialiased transition-colors flex"
-      data-current-app="{% if active_app == 'bookmark' or current_page == 'bookmarks' or current_page == 'tag-settings' or current_page == 'home' %}bookmark{% else %}rss{% endif %}">
+<body class="h-full bg-[var(--color-background)] text-[var(--color-foreground)] font-sans antialiased overflow-hidden">
+    {# Flash messages for SSR operations #}
+    {% include "includes/_messages.html" %}
 
-{# ── Sidebar Overlay (mobile) ───────────────────────── #}
-<div id="sidebar-overlay" class="fixed inset-0 z-40 bg-black/30 opacity-0 pointer-events-none md:hidden" aria-hidden="true"></div>
-
-{# ── Sidebar ────────────────────────────────────────── #}
-<aside id="sidebar-panel" class="fixed top-0 bottom-0 left-0 z-40 w-64 bg-white border-r border-gray-200 flex flex-col md:translate-x-0">
-
-    {# ── Sidebar Header (Logo + App Switcher) ────────── #}
-    <div class="px-3 py-4 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-        <div class="relative flex-1" id="app-switcher-wrapper">
-            <button id="app-switcher-btn" type="button" aria-label="App switcher"
-                    class="flex items-center gap-2 group hover:opacity-75 transition-opacity">
-                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                    <span class="text-white font-bold text-xs leading-none">F</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <span class="font-semibold text-gray-900 text-sm">Feedee</span>
-                    <span id="app-switcher-badge" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand-100 text-brand-700">Feed</span>
-                </div>
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <div id="app-switcher-dropdown" class="hidden absolute left-0 top-full mt-1 w-56 bg-white rounded-lg border border-gray-200 shadow-lg py-1 z-50">
-                <a href="{% url 'bookmarks-page' %}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 data-app-option" data-app="bookmark">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 3.75H6.75A2.25 2.25 0 004.5 6v15.75l7.5-4.5 7.5 4.5V6a2.25 2.25 0 00-2.25-2.25z"/></svg>
-                    Bookmark
-                    <span class="ml-auto w-2 h-2 rounded-full bg-brand-500 hidden" id="app-indicator-bookmark"></span>
-                </a>
-                <a href="{% url 'feeds-page' %}" class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 data-app-option" data-app="rss">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="18" r="1.75" fill="currentColor" stroke="none"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 11a9 9 0 019 9m-9-14a14 14 0 0114 14"/></svg>
-                    Feed
-                    <span class="ml-auto w-2 h-2 rounded-full bg-brand-500 hidden" id="app-indicator-rss"></span>
-                </a>
-            </div>
+    {# React AppShell Mount Container (Claude Design 5a, 5b, 5c) #}
+    <div id="feedee-app"
+         class="w-full h-full"
+         data-props='{% block app_props %}{"initialMode":"{% if current_page == "bookmarks" or active_app == "bookmark" %}saved{% elif current_page == "settings" or active_app == "settings" %}settings{% elif current_page == "feeds" or current_page == "inbox" %}inbox{% else %}dashboard{% endif %}"}{% endblock %}'>
+        {# SSR unread metadata #}
+        <span class="sr-only" aria-label="{{ sidebar_total_unread|default:0 }} unread">{{ sidebar_total_unread|default:0 }} unread</span>
+        {% block content %}
+        {# Fallback SSR Content for SEO / Non-JS #}
+        <div class="flex items-center justify-center h-full text-xs text-[var(--color-muted-foreground)]">
+            <p>読み込み中...</p>
         </div>
-        
-        {# Mobile sidebar close button #}
-        <button id="sidebar-close-btn" class="md:hidden p-1 rounded-lg hover:bg-gray-100 text-gray-600">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+        {% endblock %}
     </div>
 
-    {# ── Sidebar Content (Mode-Switched) ──────────────── #}
-    <div class="flex-1 flex flex-col overflow-hidden" id="sidebar-content">
-
-        {# ===== FEEDS SIDEBAR (RSS App) ===== #}
-        <div id="sidebar-rss" class="flex-1 flex flex-col overflow-hidden {% if active_app != 'rss' and current_page not in 'overview,feeds,feed-articles' %}hidden{% endif %}">
-            <nav class="px-3 pt-4 pb-2 space-y-0.5 flex-shrink-0">
-        <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Feeds</p>
-        <a href="{% url 'feeds-page' %}"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if current_page == 'feeds' and state_filter == 'all' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/></svg>
-            All items
-            <span class="ml-auto text-[11px] font-medium text-brand-700 bg-brand-50 rounded-full px-2 py-0.5"
-                  aria-label="{{ sidebar_total_unread }} unread">{{ sidebar_total_unread }}</span>
-        </a>
-        <a href="{% url 'feeds-page' %}?state=read-later"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if state_filter == 'read-later' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
-            Read later
-            {% if sidebar_total_read_later %}<span class="ml-auto text-xs font-medium text-sky-600 bg-sky-50 rounded-full px-2 py-0.5">{{ sidebar_total_read_later }}</span>{% endif %}
-        </a>
-    </nav>
-
-    <div class="flex-1 overflow-y-auto px-3 pt-3 pb-2">
-        <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Feeds</p>
-        {% for group in sidebar_groups %}
-            <div class="mb-3 sidebar-category" data-category="{{ group.name }}">
-                {% if group.name != "Ungrouped" %}
-                    <button type="button" class="category-toggle w-full flex items-center gap-1 px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 hover:text-gray-600">
-                        <svg class="category-chevron w-3 h-3 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M19 9l-7 7-7-7"/></svg>
-                        {{ group.name }}
-                    </button>
-                {% endif %}
-                <div class="category-feeds">
-                {% for feed in group.feeds %}
-                    <a href="{% url 'feed-articles' feed.id %}"
-                       class="sidebar-link flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 {% if current_page == 'feed-articles' and current_feed_id == feed.id %}active{% endif %}">
-                        <span class="w-2 h-2 rounded-full bg-brand-400 flex-shrink-0"></span>
-                        <span class="truncate">{{ feed.name }}</span>
-                        {% if feed.unread_count %}<span class="ml-auto text-[11px] tabular-nums text-gray-400">{{ feed.unread_count }}</span>{% endif %}
-                    </a>
-                {% endfor %}
-                </div>
-            </div>
-        {% empty %}
-            <p class="px-3 text-sm text-gray-400">No feeds yet. Open Settings from the user menu to add one.</p>
-        {% endfor %}
-
-    </div>
-        </div>
-        {# End RSS Sidebar #}
-
-        {# ===== BOOKMARKS SIDEBAR (Bookmark App) ===== #}
-        <div id="sidebar-bookmark" class="flex-1 flex flex-col overflow-hidden {% if active_app != 'bookmark' and current_page != 'bookmarks' %}hidden{% endif %}">
-
-    {% if request.user.is_authenticated %}
-    <div class="flex-1 overflow-y-auto px-3 pt-4 pb-2">
-        <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">All items</p>
-        <a href="{% url 'bookmarks-page' %}"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if not selected_category_id and not tag_slug and request.GET.flag|default:'all' == 'all' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
-            All items
-            {% if sidebar_total_bookmarks %}<span class="ml-auto text-xs font-medium text-violet-600 bg-violet-50 rounded-full px-2 py-0.5">{{ sidebar_total_bookmarks }}</span>{% endif %}
-        </a>
-        <a href="{% url 'bookmarks-page' %}?flag=pinned"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if request.GET.flag == 'pinned' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M8 3h8l-2.5 6v4l2 2v1H8.5v-1l2-2V9L8 3zM12 16v5"/></svg>
-            Pinned
-            {% if sidebar_total_bookmarks_pinned %}<span class="ml-auto text-xs font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">{{ sidebar_total_bookmarks_pinned }}</span>{% endif %}
-        </a>
-        <a href="{% url 'bookmarks-page' %}?flag=read-later"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if request.GET.flag == 'read-later' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
-            Read later
-            {% if sidebar_total_bookmarks_read_later %}<span class="ml-auto text-xs font-medium text-sky-600 bg-sky-50 rounded-full px-2 py-0.5">{{ sidebar_total_bookmarks_read_later }}</span>{% endif %}
-        </a>
-        <a href="{% url 'bookmarks-page' %}?flag=favorite"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if request.GET.flag == 'favorite' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-            Favorites
-            {% if sidebar_total_bookmarks_favorite %}<span class="ml-auto text-xs font-medium text-rose-600 bg-rose-50 rounded-full px-2 py-0.5">{{ sidebar_total_bookmarks_favorite }}</span>{% endif %}
-        </a>
-
-        <div class="border-t border-gray-100 mt-3 pt-3">
-            <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Categories</p>
-        {% for cat in sidebar_bookmark_categories %}
-        <a href="{% url 'bookmarks-page' %}?category={{ cat.id }}"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if selected_category_id == cat.id|stringformat:'s' %}active{% endif %}">
-            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: {{ cat.color|default:'#9ca3af' }}"></span>
-            <span class="truncate">{{ cat.name }}</span>
-            {% if cat.bookmark_count %}<span class="ml-auto text-[11px] tabular-nums text-gray-400">{{ cat.bookmark_count }}</span>{% endif %}
-        </a>
-        {% endfor %}
-        </div>
-
-        {% if sidebar_tags %}
-        <div class="border-t border-gray-100 mt-3 pt-3">
-            <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Tags</p>
-            <div class="flex flex-wrap gap-1.5 px-3">
-                {% for tag in sidebar_tags %}
-                <a href="{% url 'bookmarks-page' %}?tag={{ tag.slug }}"
-                   class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors
-                          {% if tag_slug == tag.slug %}text-white shadow-sm{% else %}border border-gray-200 bg-white text-gray-600 hover:bg-gray-50{% endif %}"
-                   {% if tag_slug == tag.slug %}style="background-color: {{ tag.color }}"{% endif %}>
-                    <span class="w-2 h-2 rounded-full flex-shrink-0 {% if tag_slug == tag.slug %}bg-white/50{% endif %}"
-                          {% if tag_slug != tag.slug %}style="background-color: {{ tag.color }}"{% endif %}></span>
-                    {{ tag.name }}
-                </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-    </div>
-        {% endif %}
-        </div>
-        {# End Bookmark Sidebar #}
-
-    </div>
-    {# End Sidebar Content #}
-
-    {# ===== UNIFIED SETTINGS LINK (always at bottom) ===== #}
-    <div class="mt-auto px-3 pb-3 pt-2 border-t border-gray-100 flex-shrink-0">
-        <a href="{% url 'settings-unified' %}"
-           class="sidebar-link flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-700 {% if current_page == 'settings' %}active{% endif %}">
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/><path stroke-linecap="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Settings
-        </a>
-    </div>
-
-</aside>
-
-{# ── Main Content ───────────────────────────────────── #}
-<main class="md:ml-64 flex-1 min-h-screen bg-gray-50 flex flex-col">
-    {# ── Search Bar (Fixed Top) ────────────────────── #}
-    <div class="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 md:px-8 py-3 flex-shrink-0">
-        <div class="flex items-center gap-3">
-            <form method="get" action="{% if active_app == 'bookmark' %}{% url 'bookmarks-page' %}{% else %}{% url 'feeds-page' %}{% endif %}" class="relative w-full max-w-md">
-                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M21 21l-5.2-5.2M17 10a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" name="q" value="{{ query|default:'' }}" placeholder="{% if active_app == 'bookmark' %}Search bookmarks…{% else %}Search feeds…{% endif %}"
-                       class="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm placeholder-gray-400 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-100 focus:outline-none transition-colors">
-            </form>
-            {% if request.user.is_authenticated %}
-                <div class="relative ml-auto" id="user-menu-wrapper">
-                    <button id="user-menu-btn" type="button" aria-label="User menu"
-                            class="rounded-lg p-1.5 hover:bg-gray-100 transition-colors">
-                        <div class="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-                            <span class="text-xs font-semibold text-brand-700">{{ request.user.username|first|upper }}</span>
-                        </div>
-                    </button>
-                    <div id="user-menu-dropdown" class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-lg border border-gray-200 shadow-lg py-1 z-50">
-                        <a href="{% url 'settings-account' %}"
-                           class="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/><circle cx="12" cy="12" r="3"/></svg>
-                            Settings
-                        </a>
-                        <form method="post" action="{% url 'logout' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                                Logout
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            {% else %}
-                <a href="{% url 'login' %}" class="ml-auto px-3 py-2 text-sm font-medium text-brand-600 hover:text-brand-700 rounded-lg hover:bg-gray-100 transition-colors">
-                    Sign in
-                </a>
-            {% endif %}
-        </div>
-    </div>
-
-    {# ── Messages ──────────────────────────────────── #}
-    {% if messages %}
-        <div class="px-4 md:px-8 pt-4 space-y-2">
-            {% for message in messages %}
-                <div class="rounded-lg px-4 py-3 text-sm font-medium border
-                    {% if message.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-700
-                    {% elif message.tags == 'error' %}bg-rose-50 border-rose-200 text-rose-700
-                    {% else %}bg-amber-50 border-amber-200 text-amber-700{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    {# ── Content ──────────────────────────────────── #}
-    <div class="flex-1">
-        {% block content %}{% endblock %}
-    </div>
-</main>
-
-{# ── Confirm Dialog ────────────────────────────── #}
-<div id="confirm-dialog" class="fixed inset-0 z-[110] bg-black/40 items-center justify-center" role="dialog" aria-modal="true" style="display:none">
-    <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 max-w-sm w-full mx-4">
-        <p id="confirm-message" class="text-sm text-gray-700 leading-relaxed"></p>
-        <div class="mt-5 flex items-center justify-end gap-2">
-            <button id="confirm-cancel" type="button"
-                    class="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                Cancel
-            </button>
-            <button id="confirm-ok" type="button"
-                    class="rounded-lg bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-sm font-medium transition-colors shadow-sm">
-                Confirm
-            </button>
-        </div>
-    </div>
-</div>
-
-{# ── Keyboard Shortcuts Help Overlay ───────────── #}
-<div id="shortcut-help" class="fixed inset-0 z-[100] bg-black/40 items-center justify-center" role="dialog" aria-modal="true" style="display:none">
-    <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-6 max-w-sm w-full mx-4">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-gray-900">Keyboard shortcuts</h3>
-            <button onclick="document.getElementById('shortcut-help').style.display='none'" class="text-gray-400 hover:text-gray-600">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-        <div class="space-y-2 text-sm">
-            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Reader view</p>
-            <div class="flex justify-between"><span class="text-gray-600">Previous article</span><span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">k / ←</span></div>
-            <div class="flex justify-between"><span class="text-gray-600">Next article</span><span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">j / →</span></div>
-            <div class="flex justify-between"><span class="text-gray-600">Open original</span><span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">o</span></div>
-            <div class="flex justify-between"><span class="text-gray-600">Back to list</span><span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">u / Esc</span></div>
-            <div class="border-t border-gray-100 my-2"></div>
-            <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Global</p>
-            <div class="flex justify-between"><span class="text-gray-600">Show this help</span><span class="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">?</span></div>
-        </div>
-    </div>
-</div>
-
-{% block extra_js %}{% endblock %}
+    {% block extra_body %}{% endblock %}
 </body>
 </html>

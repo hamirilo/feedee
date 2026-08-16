@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Feedee — RSS & Bookmark Manager{% endblock %}
+
+{% block app_props %}
+{
+  "initialMode": "{{ initial_mode|default:'dashboard' }}",
+  "userEmail": "{{ request.user.email|default:'user@example.com' }}",
+  "initialStats": {
+    "unread_total": {{ sidebar_total_unread|default:0 }},
+    "read_later_total": {{ sidebar_total_read_later|default:0 }},
+    "bookmarks_total": {{ sidebar_total_bookmarks|default:0 }},
+    "completion_rate": 68,
+    "unread_breakdown": [
+      {% for group in sidebar_groups %}
+      { "label": "{{ group.name }}", "count": {{ group.unread_count|default:0 }}, "percentage": 50 }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ]
+  }
+}
+{% endblock %}

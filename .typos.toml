@@ -7,7 +7,9 @@ extend-exclude = [
   "staticfiles",
   "media",
   "backend",
-  "hamirilo-platform"
+  "hamirilo-platform",
+  "claude-design",
+  "static/dist"
 ]
 
 [default.extend-words]
