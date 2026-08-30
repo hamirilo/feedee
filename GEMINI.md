@@ -15,8 +15,8 @@
 本プロジェクトは、共有開発知識リポジトリ `hamirilo-platform` の設計方針に従っています。
 
 ### 開発の知識とガイドライン
-- **オンボーディング**: [ONBOARDING.md](file:///Users/papa/dev/feedee/hamirilo-platform/ai/ONBOARDING.md)
-- **開発標準**: [standards](file:///Users/papa/dev/feedee/hamirilo-platform/standards/)
+- **オンボーディング**: [../ai-dev-platform/ai/ONBOARDING.md](../ai-dev-platform/ai/ONBOARDING.md)
+- **開発標準**: [../ai-dev-platform/standards/](file:///Users/papa/dev/ai-dev-platform/standards/)
 
 ---
 
