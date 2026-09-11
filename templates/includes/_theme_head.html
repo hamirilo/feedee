@@ -29,7 +29,7 @@
     html.theme-dark .text-gray-600,
     html.theme-dark .text-gray-500 { color: #cbd5e1 !important; }
     html.theme-dark .text-gray-400 { color: #94a3b8 !important; }
-    html.theme-dark input,
+    html.theme-dark input:not([type="checkbox"]):not([type="radio"]),
     html.theme-dark select,
-    html.theme-dark textarea { background-color: #0f172a !important; color: #f8fafc !important; border-color: #334155 !important; }
+    html.theme-dark textarea { background-color: var(--color-background) !important; color: var(--color-foreground) !important; border-color: var(--color-input) !important; }
 </style>

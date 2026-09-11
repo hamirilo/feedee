@@ -3,31 +3,55 @@
 @import "tailwindcss";
 @source "../../templates";
 @source "../**/*.{js,ts,jsx,tsx}";
+/* Django form widgets carry Tailwind classes in `attrs={"class": ...}`. */
+@source "../../apps/**/*.py";
+
+/*
+ * Design tokens (see DESIGN.md).
+ * These live in `@theme` — not a plain `:root` block — so Tailwind v4 generates
+ * the matching utilities (`bg-primary`, `border-border`, `bg-brand-600`,
+ * `shadow-soft`, ...). Tailwind v4 does not read `tailwind.config.js`.
+ */
+@theme {
+  --font-sans: "Inter", "IBM Plex Sans JP", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: #ffffff;
+  --color-foreground: #0f172a;
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-active: #1e40af;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f8fafc;
+  --color-secondary-hover: #f1f5f9;
+  --color-secondary-active: #e2e8f0;
+  --color-secondary-foreground: #334155;
+  --color-secondary-border: #e2e8f0;
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #64748b;
+  --color-border: #e2e8f0;
+  --color-input: #e2e8f0;
+  --color-ring: #2563eb;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #0284c7;
+
+  /* Brand ramp — used by the SSR templates (buttons, links, focus rings). */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+
+  --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
+}
 
 @layer theme {
   :root {
-    --font-sans: "Inter", "IBM Plex Sans JP", ui-sans-serif, system-ui, sans-serif;
     --radius: 0.5rem;
-    --color-background: #ffffff;
-    --color-foreground: #0f172a;
-    --color-primary: #2563eb;
-    --color-primary-hover: #1d4ed8;
-    --color-primary-active: #1e40af;
-    --color-primary-foreground: #ffffff;
-    --color-secondary: #f8fafc;
-    --color-secondary-hover: #f1f5f9;
-    --color-secondary-active: #e2e8f0;
-    --color-secondary-foreground: #334155;
-    --color-secondary-border: #e2e8f0;
-    --color-muted: #f1f5f9;
-    --color-muted-foreground: #64748b;
-    --color-border: #e2e8f0;
-    --color-card: #ffffff;
-    --color-card-foreground: #0f172a;
-    --color-success: #10b981;
-    --color-warning: #f59e0b;
-    --color-danger: #ef4444;
-    --color-info: #0284c7;
   }
 
   [data-theme="dark"],
@@ -46,12 +70,23 @@
     --color-muted: #131b2e;
     --color-muted-foreground: #94a3b8;
     --color-border: #1e293b;
+    --color-input: #334155;
+    --color-ring: #3b82f6;
     --color-card: #0f172a;
     --color-card-foreground: #f8fafc;
     --color-success: #10b981;
     --color-warning: #f59e0b;
     --color-danger: #ef4444;
     --color-info: #38bdf8;
+
+    --color-brand-50: #172554;
+    --color-brand-100: #1e3a8a;
+    --color-brand-200: #1d4ed8;
+    --color-brand-500: #60a5fa;
+    --color-brand-600: #3b82f6;
+    --color-brand-700: #2563eb;
+
+    --shadow-soft: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
   }
 }
 
