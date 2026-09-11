@@ -16,8 +16,8 @@ from .utils import discover_feed_url
 User = get_user_model()
 
 _INPUT_CLASS = (
-    "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm "
-    "placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 "
+    "w-full rounded-lg border border-input bg-background text-foreground px-3 py-2 text-sm "
+    "placeholder:text-muted-foreground focus:border-brand-500 focus:ring-2 focus:ring-brand-100 "
     "focus:outline-none transition-colors"
 )
 
@@ -225,12 +225,21 @@ class UserProfileForm(forms.ModelForm):
 
 
 class EmailLoginForm(AuthenticationForm):
+    # Django ships translated defaults; the auth screens are written in English,
+    # so pin the messages instead of rendering a mixed-language form.
+    error_messages = {
+        **AuthenticationForm.error_messages,
+        "invalid_login": "Invalid email or password.",
+        "inactive": "This account is inactive.",
+    }
+
     username = forms.EmailField(
         label="Email",
         widget=forms.EmailInput(
             attrs={
                 "class": _INPUT_CLASS,
                 "placeholder": "you@example.com",
+                "autocomplete": "email",
                 "autofocus": True,
             }
         ),
@@ -242,6 +251,7 @@ class EmailLoginForm(AuthenticationForm):
             {
                 "class": _INPUT_CLASS,
                 "placeholder": "Password",
+                "autocomplete": "current-password",
             }
         )
 
@@ -253,6 +263,7 @@ class SignUpForm(UserCreationForm):
             attrs={
                 "class": _INPUT_CLASS,
                 "placeholder": "you@example.com",
+                "autocomplete": "email",
                 "autofocus": True,
             }
         ),
@@ -268,12 +279,14 @@ class SignUpForm(UserCreationForm):
             {
                 "class": _INPUT_CLASS,
                 "placeholder": "Create a password",
+                "autocomplete": "new-password",
             }
         )
         self.fields["password2"].widget.attrs.update(
             {
                 "class": _INPUT_CLASS,
                 "placeholder": "Confirm your password",
+                "autocomplete": "new-password",
             }
         )
 
