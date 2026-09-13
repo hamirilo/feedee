@@ -12,7 +12,7 @@ PR と `main` / 作業ブランチへの push で起動する。ジョブは 5 �
 
 | ジョブ | 内容 |
 | --- | --- |
-| `backend` | `uv sync --frozen` / ruff / typos / migration の欠落検査 / PostgreSQL への migrate / pytest / `check --deploy` |
+| `backend` | `uv sync --frozen` / ruff / typos / migration の欠落検査 / pytest / `check --deploy` |
 | `frontend` | `bun install --frozen-lockfile` / biome / vite build |
 | `worker` | RSS 取得ワーカー (Go) の gofmt / vet / test / build |
 | `image` | backend と rss-worker の image build と、中身があることの確認 |
@@ -28,11 +28,46 @@ check が永久に pending になり merge できなくなる。
 型チェックは入れていない。Python 側に mypy、フロントエンド側に TypeScript の設定が
 まだ無いため、形式的にツールを足すことはしていない。どちらかを導入したらこのジョブへ加える。
 
-### テストの DB
+### テストの DB（既知の穴）
 
-`DATABASE_URL` を渡してサービスコンテナの PostgreSQL に対して実行する。
-`config/settings/base.py` は `DATABASE_URL` が無いと SQLite にフォールバックするため、
-渡さないと実行環境と違うエンジンで検証することになる。
+CI のテストは **SQLite** で走る。実行環境は PostgreSQL なので、本来は実行環境と同じ
+エンジンで migrate とテストを実行すべきだが、現在は次の理由でできない。
+
+`apps/rssapp/migrations/0019_readingitem_somedayitem_subscription_and_more.py` が
+Article をはじめ 7 つのモデルの主キーを bigint から UUID へ `AlterField` で変換している。
+PostgreSQL ではこれが
+
+```text
+django.db.utils.ProgrammingError: cannot cast type bigint to uuid
+LINE 1: ...rssapp_article" ALTER COLUMN "id" TYPE uuid USING "id"::uuid
+```
+
+で失敗する。SQLite はテーブルを作り直すため通ってしまい、これまで気づかれていなかった。
+**空の DB でも失敗する**ため、PostgreSQL では migration を最初から適用できない
+（新しい環境を立ち上げられない、という本番側の問題でもある）。
+
+直し方は主キーの変換を PostgreSQL でも適用できる形にすること（既存行の id を
+どう引き継ぐか、参照している外部キーをどう合わせるかを決める必要があるため、
+本番 DB の現状を確認してから行う）。直したら次を CI へ戻す。
+
+1. `backend` ジョブへ `postgres:16-alpine` のサービスコンテナを足す
+2. `DATABASE_URL` を渡す（`config/settings/base.py` は これがあれば PostgreSQL を使う）
+3. `manage.py migrate` のステップを `pytest` の前に置く
+
+### GitHub Packages（初回に必要）
+
+`@hamirilo/*` は GitHub Packages 配信のため、`bun install` と image build には
+`read:packages` を持つトークンが必要。CI は Actions の `GITHUB_TOKEN` を使うが、
+このリポジトリにはまだパッケージ側の read 権限が無く、`@hamirilo/ui` の取得が 403 になる。
+
+次のどちらかを設定するまで `frontend` と `image` ジョブは失敗する。
+
+- パッケージ設定の "Manage Actions access" に `hamirilo/feedee` を追加する
+- `read:packages` を持つ PAT を Secret `NPM_PACKAGES_TOKEN` として登録する
+
+なお `@hamirilo/ui` と `@hamirilo/application-ui-kit` は現在どちらもコードから
+import されていない（`@hamirilo/ui` は Standard 上は廃止済み）。UI Kit を採用しない
+のであれば、依存から外すという解決でもよい。
 
 ### 版の固定
 
