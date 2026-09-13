@@ -125,6 +125,17 @@ just prod-logs     # ログ確認
 ```
 
 
+## CI とリリース
+
+CI（`.github/workflows/ci.yml`）は backend / frontend / worker / image の 4 ジョブで検証し、
+集約ジョブ `ci` が結果をまとめる。branch protection の required check には `ci` だけを登録する。
+
+リリースは Release Please（`.github/workflows/release-please.yml`）が `version.txt` /
+`CHANGELOG.md` / tag / GitHub Release を作る。PR title は Conventional Commits で書くこと
+（`.github/workflows/pr-title.yml` が検査し、prefix が無いと release されない）。
+
+手順は [docs/release.md](docs/release.md) を参照。
+
 ## API エンドポイント
 
 すべての API は Token 認証が必要（`Authorization: Token <token>`）。

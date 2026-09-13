@@ -91,13 +91,13 @@ type atomFeed struct {
 }
 
 type atomEntry struct {
-	Title   string     `xml:"title"`
-	Links   []atomLink `xml:"link"`
-	ID      string     `xml:"id"`
-	Summary string     `xml:"summary"`
-	Content string     `xml:"content"`
-	Updated string     `xml:"updated"`
-	Published string   `xml:"published"`
+	Title     string     `xml:"title"`
+	Links     []atomLink `xml:"link"`
+	ID        string     `xml:"id"`
+	Summary   string     `xml:"summary"`
+	Content   string     `xml:"content"`
+	Updated   string     `xml:"updated"`
+	Published string     `xml:"published"`
 }
 
 type atomLink struct {

@@ -1,0 +1,224 @@
+name: CI
+
+# PR・マージの必須ゲート。
+# ローカルの一括チェックは `just check` / `just test` だが、CI では just を経由せず生コマンドで書く。
+#
+# 起動条件を `on.paths` で絞っていないのは、required check にしたときに対象外の PR が
+# 永久に pending になるのを避けるため。必須にするチェックは集約ジョブ `ci` の 1 つでよい。
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      # 作業ブランチでも実行する。PR を開く前に CI の健全性を確認するための措置
+      # (PR 中は push と pull_request で二重に走る)。
+      - "claude/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # `just check` の Python 側 + `just test`。
+  backend:
+    name: backend (ruff / typos / migration / pytest)
+    runs-on: ubuntu-latest
+
+    services:
+      # 実行環境と同じ DB エンジンを使う (compose.prod.yaml と同じイメージ)。
+      # SQLite では PostgreSQL 固有の migration を検査できない。
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: feedee
+          POSTGRES_USER: feedee
+          POSTGRES_PASSWORD: feedee
+        ports:
+          - 5432:5432
+        # 既定の 10 秒間隔では最初のヘルスチェックを待つだけで 20 秒以上かかる。
+        options: >-
+          --health-cmd "pg_isready -U feedee"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # config/settings/base.py は DATABASE_URL があれば PostgreSQL を使う
+      # (無いと SQLite にフォールバックし、実行環境と違うエンジンで検証することになる)。
+      DATABASE_URL: "postgresql://feedee:feedee@localhost:5432/feedee"
+      DJANGO_SECRET_KEY: ci-dummy-secret-key-not-for-production
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # uv 本体の版はここで固定する (setup-uv の版は action の版であって uv の版ではない)。
+      # Dockerfile の ghcr.io/astral-sh/uv と同じ系列に揃えること。
+      - name: uv のセットアップ
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.10.12"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      # ロックのとおりに入れる。lock と manifest がずれていたら失敗する。
+      - name: Python 依存のインストール
+        run: uv sync --frozen
+
+      - name: ruff (lint)
+        run: uv run ruff check .
+
+      - name: ruff (format)
+        run: uv run ruff format --check .
+
+      - name: typos
+        run: uvx typos
+
+      # モデルを変えて migration を作り忘れると、本番の migrate まで誰も気づかない。
+      # 開発機には適用済みの DB があるため再現しない。
+      - name: migration の欠落検査
+        run: uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+
+      - name: migrate (PostgreSQL)
+        run: uv run python manage.py migrate --noinput
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+
+      # 設定は pyproject.toml の DJANGO_SETTINGS_MODULE = config.settings.development を使う。
+      - name: pytest
+        run: uv run pytest
+
+      # 本番設定での構成ミスを拾う。ERROR 相当のときだけ失敗する
+      # (家庭内 LAN の HTTP 運用で出る security.W00x は警告のまま)。
+      - name: deploy check (production settings)
+        run: uv run python manage.py check --deploy
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.production
+          DJANGO_ALLOWED_HOSTS: example.com
+          POSTGRES_HOST: localhost
+          POSTGRES_PASSWORD: feedee
+
+  # `just check` のフロントエンド側 + 本番ビルド。
+  frontend:
+    name: frontend (biome / build)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # .npmrc の @hamirilo スコープ (GitHub Packages) を読むために必要。
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # bun の版はリポジトリの .bun-version が正本。CI はそれを参照するだけにする。
+      - name: bun のセットアップ
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .bun-version
+
+      # .npmrc は ${GITHUB_TOKEN} を参照する。@hamirilo/* は GitHub Packages 配信のため、
+      # 公開パッケージであってもトークンなしでは 401 になる。
+      # GitHub CLI の予約名と衝突するため、この名前の環境変数はこのステップに閉じる。
+      #
+      # 401 が続く場合は、次のどちらかが必要:
+      #   a) パッケージ設定の "Manage Actions access" に hamirilo/feedee を追加する
+      #   b) read:packages 権限を持つ PAT を Secret `NPM_PACKAGES_TOKEN` として登録する
+      - name: 依存のインストール
+        run: bun install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: biome
+        run: bun run biome check .
+
+      - name: vite build
+        run: bun run build
+
+  # RSS 取得ワーカー (Go)。Django 側とは別の成果物なので独立したジョブにする。
+  worker:
+    name: worker (gofmt / vet / test / build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Go の版は go.mod が正本 (rss_worker/Dockerfile の golang イメージと揃えること)。
+      - name: Go のセットアップ
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l rss_worker)"
+          if [ -n "$unformatted" ]; then
+            echo "gofmt が必要なファイル:" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test
+        run: go test ./...
+
+      # 出力名が rss_worker ディレクトリと衝突するため -o で書き出し先を指定する。
+      - name: go build
+        run: go build -o /tmp/rss-worker ./rss_worker
+
+  # 型チェック・Linter・テストの成功だけでは「配布物が動く」と判断しない。
+  # push はせず、イメージが組み上がることと中身があることだけを見る。
+  image:
+    name: image build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+
+      # トークンは --build-arg ではなく BuildKit の secret で渡す (イメージに残さない)。
+      - name: backend イメージを build する
+        run: docker build --secret id=github_token,env=PACKAGES_TOKEN -t feedee:ci .
+        env:
+          PACKAGES_TOKEN: ${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+
+      # build が成功しても、静的成果物が 1 つも入っていないイメージは配れてしまう。
+      - name: 成果物がイメージに入っていることの確認
+        run: |
+          docker run --rm --entrypoint sh feedee:ci -c '
+            set -e
+            test -s static/dist/manifest.json
+            find static/dist -name "*.js" -print -quit | grep -q .
+          '
+
+      - name: rss-worker イメージを build する
+        run: docker build -f rss_worker/Dockerfile -t feedee-rss-worker:ci .
+
+      - name: rss-worker がイメージに入っていることの確認
+        run: docker run --rm --entrypoint sh feedee-rss-worker:ci -c 'test -x /usr/local/bin/rss-worker'
+
+  # ruleset へ登録する required check はこのジョブ 1 つだけにする。
+  # needs にはすべてのジョブを列挙すること。省いたジョブの失敗は後続の skipped として
+  # 伝播し、required check が緑のまま merge できてしまう。
+  ci:
+    name: ci
+    # 先行ジョブが skip・失敗のどちらでも、このジョブは必ず結果を報告する。
+    if: always()
+    needs: [backend, frontend, worker, image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 先行ジョブの結果を判定する
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          echo "$RESULTS"
+          case "$RESULTS" in
+            *failure*|*cancelled*) exit 1 ;;
+          esac
