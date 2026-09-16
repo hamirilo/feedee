@@ -4,6 +4,7 @@
     ".": {
       "release-type": "simple",
       "package-name": "feedee",
+      "include-component-in-tag": false,
       "changelog-path": "CHANGELOG.md"
     }
   }
