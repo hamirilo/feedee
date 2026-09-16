@@ -8,7 +8,7 @@
 
 ## CI (`.github/workflows/ci.yml`)
 
-PR と `main` / 作業ブランチへの push で起動する。ジョブは 5 つ。
+PR と `main` への push で起動する。ジョブは 5 つ。
 
 | ジョブ | 内容 |
 | --- | --- |

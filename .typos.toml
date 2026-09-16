@@ -1,5 +1,8 @@
 [files]
 extend-exclude = [
+  # Release Please が生成する。commit ハッシュ (例: ba4ba78) を typo と誤検出するうえ、
+  # 中身は過去の commit message なので直せない。
+  "CHANGELOG.md",
   "*.lock",
   "*.log",
   "node_modules",

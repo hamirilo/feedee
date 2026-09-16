@@ -5,15 +5,16 @@ name: CI
 #
 # 起動条件を `on.paths` で絞っていないのは、required check にしたときに対象外の PR が
 # 永久に pending になるのを避けるため。必須にするチェックは集約ジョブ `ci` の 1 つでよい。
+#
+# 作業ブランチへの push では起動しない。PR と push の両方で起動すると同じコミットを
+# 二重に検証することになるため、検証は PR に寄せる (PR を開く前に回したいときは
+# workflow_dispatch を使う)。
 
 on:
   pull_request:
   push:
     branches:
       - main
-      # 作業ブランチでも実行する。PR を開く前に CI の健全性を確認するための措置
-      # (PR 中は push と pull_request で二重に走る)。
-      - "claude/**"
   workflow_dispatch:
 
 permissions:
