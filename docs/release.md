@@ -54,20 +54,20 @@ LINE 1: ...rssapp_article" ALTER COLUMN "id" TYPE uuid USING "id"::uuid
 2. `DATABASE_URL` を渡す（`config/settings/base.py` は これがあれば PostgreSQL を使う）
 3. `manage.py migrate` のステップを `pytest` の前に置く
 
-### GitHub Packages（初回に必要）
+### GitHub Packages
 
-`@hamirilo/*` は GitHub Packages 配信のため、`bun install` と image build には
-`read:packages` を持つトークンが必要。CI は Actions の `GITHUB_TOKEN` を使うが、
-このリポジトリにはまだパッケージ側の read 権限が無く、`@hamirilo/ui` の取得が 403 になる。
+現在このリポジトリは `@hamirilo/*` に依存していない。`@hamirilo/ui`（Standard 上は廃止済み）と
+`@hamirilo/application-ui-kit` はどちらもコードから一度も import されておらず、
+GitHub Packages の read 権限が無いために CI の `bun install` が 403 で失敗していたため、
+依存から外した（2026-09）。
 
-次のどちらかを設定するまで `frontend` と `image` ジョブは失敗する。
+`.npmrc` の `@hamirilo` スコープ設定と、ワークフロー / Dockerfile のトークン受け渡し
+（`secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN` と BuildKit secret）は残してある。
+UI Kit を採用するときは依存を足すだけでよいが、そのときは次のどちらかが必要になる。
 
 - パッケージ設定の "Manage Actions access" に `hamirilo/feedee` を追加する
+  （**パッケージごとの設定**なので、使うパッケージすべてに付ける）
 - `read:packages` を持つ PAT を Secret `NPM_PACKAGES_TOKEN` として登録する
-
-なお `@hamirilo/ui` と `@hamirilo/application-ui-kit` は現在どちらもコードから
-import されていない（`@hamirilo/ui` は Standard 上は廃止済み）。UI Kit を採用しない
-のであれば、依存から外すという解決でもよい。
 
 ### 版の固定
 

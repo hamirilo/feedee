@@ -101,13 +101,12 @@ jobs:
         with:
           bun-version-file: .bun-version
 
-      # .npmrc は ${GITHUB_TOKEN} を参照する。@hamirilo/* は GitHub Packages 配信のため、
-      # 公開パッケージであってもトークンなしでは 401 になる。
-      # GitHub CLI の予約名と衝突するため、この名前の環境変数はこのステップに閉じる。
-      #
-      # 401 が続く場合は、次のどちらかが必要:
-      #   a) パッケージ設定の "Manage Actions access" に hamirilo/feedee を追加する
-      #   b) read:packages 権限を持つ PAT を Secret `NPM_PACKAGES_TOKEN` として登録する
+      # 現在の依存に @hamirilo/* は無いため、この install に認証は要らない。
+      # .npmrc が参照する ${GITHUB_TOKEN} の受け渡しは、UI Kit を採用したときに
+      # そのまま使えるように残してある (GitHub CLI の予約名と衝突するため、
+      # この名前の環境変数はこのステップに閉じる)。403 になる場合は
+      # パッケージ設定の "Manage Actions access" にこのリポジトリを追加する
+      # (パッケージごとの設定)。docs/release.md を参照。
       - name: 依存のインストール
         run: bun install --frozen-lockfile
         env:
