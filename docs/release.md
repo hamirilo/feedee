@@ -117,6 +117,10 @@ Release Please が両方を更新する。`pyproject.toml` の `version` はリ�
 
 ワークフローへ `release-type` 入力を渡していないのは、渡すと manifest が無視され、
 開始 version が不定になるため。
+tag は `v<version>` になる。`release-please-config.json` の
+`include-component-in-tag: false` がこれを決めている（省略すると既定の
+`<package-name>-v<version>` になり、既存の tag と形が変わる）。
+
 
 ### 初回に必要な GitHub 設定
 
