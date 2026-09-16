@@ -34,7 +34,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin-password}
       - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-${FASTAPI_SECRET_KEY:-change-me-to-a-random-secret-key}}
-      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web,backend,feedee-web,nginx,feedee.local,feedee.localhost,192.168.1.50,10.0.0.100}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,web,backend,feedee-web,nginx,feedee.local,feedee.localhost,192.168.1.50,10.0.0.100,100.81.153.20,mac-mini-m4,.tail4dde35.ts.net,.ts.net}
     depends_on:
       db:
         condition: service_healthy

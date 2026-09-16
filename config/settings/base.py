@@ -8,9 +8,9 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-feedee-develop
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get(
-        "DJANGO_ALLOWED_HOSTS",
-        "localhost,127.0.0.1,10.0.0.100,web,backend,feedee-web",
+    for host in (
+        os.environ.get("DJANGO_ALLOWED_HOSTS")
+        or "localhost,127.0.0.1,10.0.0.100,100.81.153.20,mac-mini-m4,.tail4dde35.ts.net,.ts.net,web,backend,feedee-web"
     ).split(",")
     if host.strip()
 ]
@@ -123,9 +123,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get(
-        "CSRF_TRUSTED_ORIGINS",
-        "http://localhost:8000,http://127.0.0.1:8000,http://10.0.0.100,http://10.0.0.100:8000,http://10.0.0.100:8082",
+    for origin in (
+        os.environ.get("CSRF_TRUSTED_ORIGINS")
+        or "http://localhost:8000,http://127.0.0.1:8000,http://10.0.0.100,http://10.0.0.100:8000,http://10.0.0.100:8082,http://100.81.153.20,http://100.81.153.20:8000,http://100.81.153.20:8082,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net"
     ).split(",")
     if origin.strip()
 ]
