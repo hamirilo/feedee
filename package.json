@@ -13,8 +13,6 @@
     "vite": "^6.4.3"
   },
   "dependencies": {
-    "@hamirilo/application-ui-kit": "^5.1.1",
-    "@hamirilo/ui": "^1.0.4",
     "alpinejs": "^3.16.2",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",

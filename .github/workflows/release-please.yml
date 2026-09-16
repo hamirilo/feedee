@@ -1,0 +1,28 @@
+name: Release Please
+
+# main へ入った Conventional Commits から version・CHANGELOG・tag・GitHub Release を作る。
+# 手順は Playbook「リポジトリのリリース」を参照 (docs/release.md)。
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release:
+    # fork では実行しない (fork は upstream の tag を同期するだけで独自の version を切らない)。
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+    steps:
+      # release-type は入力で渡さない。入力を渡すと release-please が manifest モードを
+      # 使わなくなり、.release-please-manifest.json の現在 version が無視される。
+      - uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

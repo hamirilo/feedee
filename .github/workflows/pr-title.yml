@@ -1,0 +1,44 @@
+name: PR Title
+
+# squash merge では PR title がそのまま main の commit message になり、
+# Release Please はそれだけを見て次の version を決める。prefix の無い PR は
+# 「release されない変更」として静かに merge されるため、PR の時点で形式を検査する。
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      # title は env 経由で渡す。run の中へ ${{ }} を直接展開すると、PR title へ
+      # 書かれた文字列がそのまま runner の shell で実行される。
+      - name: Conventional Commits の形式か
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -u
+          pattern='^(feat|fix|docs|chore|refactor|perf|test|build|ci|style|revert)(\([a-zA-Z0-9,./ _-]+\))?!?: .+'
+          if printf '%s' "$TITLE" | grep -Eq "$pattern"; then
+            exit 0
+          fi
+          cat >&2 <<'MSG'
+          PR title が Conventional Commits の形式ではありません。
+
+            <type>(<scope>)!: <説明>
+
+          version の決まり方:
+            feat:                 MINOR (機能追加)
+            fix:                  PATCH (不具合修正)
+            ! または BREAKING CHANGE  MAJOR (破壊的変更)
+            docs: / chore: など   release されない
+
+          title を直すとこの check は自動で再実行されます。
+          MSG
+          printf '実際の title: %s\n' "$TITLE" >&2
+          exit 1
