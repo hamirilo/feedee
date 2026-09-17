@@ -26,18 +26,32 @@ concurrency:
 
 jobs:
   # `just check` の Python 側 + `just test`。
-  #
-  # 本来は実行環境と同じ PostgreSQL に対して migrate とテストを実行したいが、現在は
-  # できない。rssapp の migration 0019 が 7 つのモデルの主キーを bigint から UUID へ
-  # AlterField で変換しており、PostgreSQL では
-  # `cannot cast type bigint to uuid` で失敗する (SQLite はテーブル再作成で通る)。
-  # migration を PostgreSQL でも適用できる形へ直したら、PostgreSQL のサービスコンテナと
-  # DATABASE_URL を足してここを切り替える (docs/release.md)。
   backend:
     name: backend (ruff / typos / migration / pytest)
     runs-on: ubuntu-latest
 
+    services:
+      # 実行環境と同じ DB エンジンを使う (compose.prod.yaml と同じイメージ)。
+      # SQLite はテーブルを作り直すため、PostgreSQL で通らない migration も通してしまう。
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: feedee
+          POSTGRES_USER: feedee
+          POSTGRES_PASSWORD: feedee
+        ports:
+          - 5432:5432
+        # 既定の 10 秒間隔では最初のヘルスチェックを待つだけで 20 秒以上かかる。
+        options: >-
+          --health-cmd "pg_isready -U feedee"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+
     env:
+      # config/settings/base.py は DATABASE_URL があれば PostgreSQL を使う
+      # (無いと SQLite にフォールバックし、実行環境と違うエンジンで検証することになる)。
+      DATABASE_URL: "postgresql://feedee:feedee@localhost:5432/feedee"
       DJANGO_SECRET_KEY: ci-dummy-secret-key-not-for-production
 
     steps:
@@ -72,8 +86,13 @@ jobs:
         env:
           DJANGO_SETTINGS_MODULE: config.settings.development
 
+      - name: migrate (PostgreSQL)
+        run: uv run python manage.py migrate --noinput
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.development
+
       # 設定は pyproject.toml の DJANGO_SETTINGS_MODULE = config.settings.development を使う。
-      # DATABASE_URL を渡していないため SQLite で走る (上のコメントを参照)。
+      # テスト DB の作成でも migration が走るため、PostgreSQL での適用可能性はここでも検証される。
       - name: pytest
         run: uv run pytest
 
