@@ -8,22 +8,22 @@
 
 ## CI (`.github/workflows/ci.yml`)
 
-PR と `main` への push で起動する。ジョブは 5 つ。
+PR と `main` への push で起動する。変更検出ジョブ `changes` が対象範囲（backend / frontend / worker / image）を判定し、不要なジョブを安全にスキップする。
 
 | ジョブ | 内容 |
 | --- | --- |
+| `changes` | PR の変更ファイルを判定し、各ジョブの実行要否を出力する |
 | `backend` | `uv sync --frozen` / ruff / typos / migration の欠落検査 / PostgreSQL への migrate / pytest / `check --deploy` |
-| `frontend` | `bun install --frozen-lockfile` / biome / vite build |
+| `frontend` | `bun install --frozen-lockfile` (キャッシュ有効) / biome / vite build |
 | `worker` | RSS 取得ワーカー (Go) の gofmt / vet / test / build |
-| `image` | backend と rss-worker の image build と、中身があることの確認 |
-| `ci` | 上記 4 つの結果を集約する |
+| `image` | Docker BuildKit GHA キャッシュを使った backend と rss-worker の image build と、中身があることの確認 |
+| `ci` | 上記すべての結果を集約する |
 
 **required check に登録するのは `ci` だけにする。** ジョブ構成を変えるたびに ruleset を
 直さずに済み、途中のジョブの失敗も集約ジョブから見える。ruleset へ個別のジョブ名を
 登録すると、ジョブを増減させるたびに merge できなくなる。
 
-起動条件を `on.paths` で絞っていない。絞ったまま required check にすると、対象外の PR で
-check が永久に pending になり merge できなくなる。
+起動条件を `on.paths` で絞らず、変更検出ジョブと `if:` で制御しているため、スキップされたジョブも成功（skipped）として集約ジョブ `ci` に正しく伝播し、PR が pending で止まることはない。
 
 型チェックは入れていない。Python 側に mypy、フロントエンド側に TypeScript の設定が
 まだ無いため、形式的にツールを足すことはしていない。どちらかを導入したらこのジョブへ加える。
