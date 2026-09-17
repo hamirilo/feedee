@@ -26,6 +26,21 @@ CI とリリースの導入時点で、レジストリ配布への移行は次�
 - `scripts/deploy.sh` を「pull して起動」へ書き換え
 - 切替時のダウンタイムと、切り戻し (digest 固定) の確認
 
+## 更新 (2026-09-17)
+
+リリース時に arm64 イメージを GHCR へ push するところまでを実装した。**配布は始まったが、
+実行環境はまだソースから build しており、本 ADR の制約は解消していない。**
+
+- リリース（release PR の merge で tag と Release ができた回）に限り、
+  `.github/workflows/release-please.yml` の `image` job が backend と rss-worker の
+  arm64 イメージを GHCR へ push する。tag は `v<version>` と `latest`、digest は
+  実行結果へ残す
+- このリポジトリは public なので GitHub hosted の arm64 runner をそのまま使える。
+  「private リポジトリでは arm64 runner を使えない」という下の制約は
+  favtt / hamirilog に当たるもので、feedee には当たらない
+- PR の CI は従来どおり push しない image build で、配布物が組み上がることだけを見る
+- `compose.prod.yaml` と `scripts/deploy.sh` は未変更。切り替えには下の「解消条件」が要る
+
 ## 決定
 
 1. 当面はコンテナイメージを **実行環境 (Mac mini) で build する**。
