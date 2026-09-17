@@ -144,8 +144,33 @@ tag は `v<version>` になる。`release-please-config.json` の
 後者が無効だと、ワークフローで `pull-requests: write` を指定していても
 release PR の作成は拒否される (`GitHub Actions is not permitted to create or approve pull requests.`)。
 
+## コンテナイメージの配布
+
+release PR を merge して tag と Release ができた回だけ、同じ Workflow の `image` job が
+リリースした commit の arm64 イメージを GHCR へ push する。
+
+| イメージ | Dockerfile |
+| --- | --- |
+| `ghcr.io/hamirilo/feedee` | `Dockerfile`（Django + Vite） |
+| `ghcr.io/hamirilo/feedee-rss-worker` | `rss_worker/Dockerfile`（Go） |
+
+tag は `v<version>` と `latest` の 2 つ。**切り戻しは tag ではなく digest で指す。**
+digest は Workflow の実行結果（Summary）に出る。
+
+イベントではなく同じ Workflow の job にしているのは、`GITHUB_TOKEN` で作られた tag や
+Release が別の Workflow を起動しないため（GitHub の無限ループ防止）。
+
+このリポジトリは public なので、GitHub hosted の arm64 runner（`ubuntu-24.04-arm`）を
+そのまま使える。private な favtt / hamirilog は QEMU のクロスビルドになっている。
+
 ## デプロイ
 
-リリース tag はコンテナイメージを配布しない。本番は Mac mini 上で
-`scripts/deploy.sh` がソースから build する運用のまま。
-制約と解消条件は [decisions/adr-0001-server-side-image-build.md](../decisions/adr-0001-server-side-image-build.md) を参照。
+**本番はまだソースから build している。** Mac mini 上で `scripts/deploy.sh` が
+`git pull` → `docker compose build` → `up -d` を実行する。
+
+pull 運用へ切り替えるには、Mac mini で GHCR へログインし（`read:packages` のトークンで
+`docker login ghcr.io`）、`compose.prod.yaml` の `backend` と `rss-worker` を `build:` から
+`image:` 参照へ変え、`scripts/deploy.sh` を「pull して起動」へ書き換える。切替時の
+ダウンタイムと切り戻しの確認も要るため、
+[decisions/adr-0001-server-side-image-build.md](../decisions/adr-0001-server-side-image-build.md)
+の解消条件を確認してから行うこと。
