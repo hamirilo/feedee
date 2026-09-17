@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.2.0](https://github.com/hamirilo/feedee/compare/v2.1.0...v2.2.0) (2026-09-17)
+
+
+### Features
+
+* リリース時に arm64 イメージを GHCR へ配布する ([d3805db](https://github.com/hamirilo/feedee/commit/d3805db97947a2593794fd61362117eba02bf372))
+* リリース時に arm64 イメージを GHCR へ配布する ([a6eea15](https://github.com/hamirilo/feedee/commit/a6eea15a5ae51bc43bdff21ef355b8ba32da3424))
+
+
+### Bug Fixes
+
+* migration を PostgreSQL でも適用できるようにする ([5e68700](https://github.com/hamirilo/feedee/commit/5e68700e7d9913cc7d196e9e684cf896cae9b9c4))
+* migration を PostgreSQL でも適用できるようにする ([0d942fa](https://github.com/hamirilo/feedee/commit/0d942fa1aafc0d4aa37cd61a923ecd4775534c9d))
+
 ## [2.1.0](https://github.com/hamirilo/feedee/compare/v2.0.0...v2.1.0) (2026-09-16)
 
 
