@@ -25,6 +25,67 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: 変更検出
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      worker: ${{ steps.filter.outputs.worker }}
+      image: ${{ steps.filter.outputs.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'apps/**'
+              - 'config/**'
+              - 'manage.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.python-version'
+              - '.typos.toml'
+              - 'Justfile'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**'
+              - 'static/**'
+              - 'templates/**'
+              - 'package.json'
+              - 'bun.lock'
+              - '.bun-version'
+              - 'biome.json'
+              - 'tailwind.config.js'
+              - 'vite.config.js'
+              - '.github/workflows/ci.yml'
+            worker:
+              - 'rss_worker/**'
+              - 'go.mod'
+              - 'go.sum'
+              - '.github/workflows/ci.yml'
+            image:
+              - 'Dockerfile'
+              - 'docker/**'
+              - 'compose*.yaml'
+              - 'apps/**'
+              - 'config/**'
+              - 'frontend/**'
+              - 'static/**'
+              - 'templates/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'package.json'
+              - 'bun.lock'
+              - 'rss_worker/**'
+              - 'go.mod'
+              - 'go.sum'
+              - '.github/workflows/ci.yml'
+
   # `just check` の Python 側 + `just test`。
   #
   # 本来は実行環境と同じ PostgreSQL に対して migrate とテストを実行したいが、現在は
@@ -35,6 +96,8 @@ jobs:
   # DATABASE_URL を足してここを切り替える (docs/release.md)。
   backend:
     name: backend (ruff / typos / migration / pytest)
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     env:
@@ -85,9 +148,10 @@ jobs:
           DJANGO_SETTINGS_MODULE: config.settings.production
           DJANGO_ALLOWED_HOSTS: example.com
 
-  # `just check` のフロントエンド側 + 本番ビルド。
   frontend:
     name: frontend (biome / build)
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -101,6 +165,14 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version-file: .bun-version
+
+      - name: Bun キャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       # 現在の依存に @hamirilo/* は無いため、この install に認証は要らない。
       # .npmrc が参照する ${GITHUB_TOKEN} の受け渡しは、UI Kit を採用したときに
@@ -122,6 +194,8 @@ jobs:
   # RSS 取得ワーカー (Go)。Django 側とは別の成果物なので独立したジョブにする。
   worker:
     name: worker (gofmt / vet / test / build)
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.worker == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -156,6 +230,8 @@ jobs:
   # push はせず、イメージが組み上がることと中身があることだけを見る。
   image:
     name: image build
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.image == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -163,11 +239,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # トークンは --build-arg ではなく BuildKit の secret で渡す (イメージに残さない)。
+      # GitHub Actions キャッシュ (type=gha) を利用してレイヤービルドを大幅高速化する。
       - name: backend イメージを build する
-        run: docker build --secret id=github_token,env=PACKAGES_TOKEN -t feedee:ci .
-        env:
-          PACKAGES_TOKEN: ${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: feedee:ci
+          secrets: |
+            github_token=${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       # build が成功しても、静的成果物が 1 つも入っていないイメージは配れてしまう。
       - name: 成果物がイメージに入っていることの確認
@@ -179,7 +265,14 @@ jobs:
           '
 
       - name: rss-worker イメージを build する
-        run: docker build -f rss_worker/Dockerfile -t feedee-rss-worker:ci .
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: rss_worker/Dockerfile
+          load: true
+          tags: feedee-rss-worker:ci
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
 
       - name: rss-worker がイメージに入っていることの確認
         run: docker run --rm --entrypoint sh feedee-rss-worker:ci -c 'test -x /usr/local/bin/rss-worker'
@@ -191,7 +284,7 @@ jobs:
     name: ci
     # 先行ジョブが skip・失敗のどちらでも、このジョブは必ず結果を報告する。
     if: always()
-    needs: [backend, frontend, worker, image]
+    needs: [changes, backend, frontend, worker, image]
     runs-on: ubuntu-latest
     steps:
       - name: 先行ジョブの結果を判定する
