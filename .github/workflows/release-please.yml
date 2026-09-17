@@ -19,10 +19,86 @@ jobs:
     # fork では実行しない (fork は upstream の tag を同期するだけで独自の version を切らない)。
     if: github.event.repository.fork == false
     runs-on: ubuntu-latest
+    outputs:
+      # release PR が merge されて tag と Release ができた回だけ true になる。
+      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
       # release-type は入力で渡さない。入力を渡すと release-please が manifest モードを
       # 使わなくなり、.release-please-manifest.json の現在 version が無視される。
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+  # リリースした commit のイメージを GHCR へ置く。backend と RSS 取得ワーカーの 2 つ。
+  #
+  # イベントで繋がず同じ Workflow の job にしているのは、GITHUB_TOKEN で作られた tag や
+  # Release が別の Workflow を起動しないため (GitHub の無限ループ防止)。
+  #
+  # ここでは push までを行い、実行環境はまだソースから build している。pull 運用への
+  # 切り替えは Mac mini 側の GHCR 認証を用意してから別途行う
+  # (decisions/adr-0001-server-side-image-build.md)。
+  image:
+    name: image を GHCR へ push する (${{ matrix.image.name }})
+    needs: release
+    if: needs.release.outputs.releases_created == 'true'
+    # このリポジトリは public なので、GitHub hosted の arm64 runner をそのまま使える
+    # (QEMU のクロスビルドより速い)。private な favtt / hamirilog は QEMU を使っている。
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: feedee, dockerfile: Dockerfile }
+          - { name: feedee-rss-worker, dockerfile: rss_worker/Dockerfile }
+    steps:
+      # release-please が version を上げた commit がそのまま main の HEAD なので、
+      # ここで checkout したものがリリースした中身になる。
+      - uses: actions/checkout@v7
+
+      - name: version を読む
+        id: meta
+        run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: build して push する
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.image.dockerfile }}
+          # 実行環境 (Mac mini / Apple Silicon) に合わせる。
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}:v${{ steps.meta.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}:latest
+          # CI の image job と同じ形で渡す。現在の依存に @hamirilo/* は無いので実際には
+          # 使われないが、UI Kit を採用したときにそのまま効く。
+          secrets: |
+            github_token=${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+          cache-from: type=gha,scope=${{ matrix.image.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}
+
+      # 切り戻しは tag ではなく digest で指すため、実行結果に残す。
+      - name: digest を記録する
+        run: |
+          {
+            echo "## 配布したイメージ (${{ matrix.image.name }})"
+            echo
+            echo '```'
+            echo "ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}:v${{ steps.meta.outputs.version }}"
+            echo "digest: ${{ steps.build.outputs.digest }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

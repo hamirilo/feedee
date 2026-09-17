@@ -13,7 +13,7 @@ PR と `main` への push で起動する。変更検出ジョブ `changes` が�
 | ジョブ | 内容 |
 | --- | --- |
 | `changes` | PR の変更ファイルを判定し、各ジョブの実行要否を出力する |
-| `backend` | `uv sync --frozen` / ruff / typos / migration の欠落検査 / pytest / `check --deploy` |
+| `backend` | `uv sync --frozen` / ruff / typos / migration の欠落検査 / PostgreSQL への migrate / pytest / `check --deploy` |
 | `frontend` | `bun install --frozen-lockfile` (キャッシュ有効) / biome / vite build |
 | `worker` | RSS 取得ワーカー (Go) の gofmt / vet / test / build |
 | `image` | Docker BuildKit GHA キャッシュを使った backend と rss-worker の image build と、中身があることの確認 |
@@ -28,31 +28,43 @@ PR と `main` への push で起動する。変更検出ジョブ `changes` が�
 型チェックは入れていない。Python 側に mypy、フロントエンド側に TypeScript の設定が
 まだ無いため、形式的にツールを足すことはしていない。どちらかを導入したらこのジョブへ加える。
 
-### テストの DB（既知の穴）
+### テストの DB
 
-CI のテストは **SQLite** で走る。実行環境は PostgreSQL なので、本来は実行環境と同じ
-エンジンで migrate とテストを実行すべきだが、現在は次の理由でできない。
+CI のテストと `migrate` は、実行環境と同じ **PostgreSQL** のサービスコンテナに対して走る。
+`config/settings/base.py` は `DATABASE_URL` があれば PostgreSQL を使うため、CI では必ず渡す
+（渡さないと SQLite にフォールバックし、実行環境と違うエンジンで検証することになる）。
 
-`apps/rssapp/migrations/0019_readingitem_somedayitem_subscription_and_more.py` が
-Article をはじめ 7 つのモデルの主キーを bigint から UUID へ `AlterField` で変換している。
-PostgreSQL ではこれが
+以前は SQLite で走らせていた。`apps/rssapp/migrations/0019_...` が 7 つのモデルの主キーを
+bigint から UUID へ変換しており、PostgreSQL には bigint → uuid の cast が無いため
 
 ```text
 django.db.utils.ProgrammingError: cannot cast type bigint to uuid
-LINE 1: ...rssapp_article" ALTER COLUMN "id" TYPE uuid USING "id"::uuid
 ```
 
-で失敗する。SQLite はテーブルを作り直すため通ってしまい、これまで気づかれていなかった。
-**空の DB でも失敗する**ため、PostgreSQL では migration を最初から適用できない
-（新しい環境を立ち上げられない、という本番側の問題でもある）。
+で失敗していた（SQLite はテーブルを作り直すため通ってしまい、長く気づかれなかった）。
+空の DB でも失敗するので、**新しい PostgreSQL 環境を立ち上げられない状態**だった。
 
-直し方は主キーの変換を PostgreSQL でも適用できる形にすること（既存行の id を
-どう引き継ぐか、参照している外部キーをどう合わせるかを決める必要があるため、
-本番 DB の現状を確認してから行う）。直したら次を CI へ戻す。
+`apps/rssapp/migrations/_uuid_cast.py` の `AlterFieldToUUID` が、この変換の USING 句を
 
-1. `backend` ジョブへ `postgres:16-alpine` のサービスコンテナを足す
-2. `DATABASE_URL` を渡す（`config/settings/base.py` は これがあれば PostgreSQL を使う）
-3. `manage.py migrate` のステップを `pytest` の前に置く
+```sql
+ALTER COLUMN "id" TYPE uuid USING lpad(to_hex("id"), 32, '0')::uuid
+```
+
+へ差し替えて解消している。10 進の値をそのまま 16 進の UUID へ移す式で、1 対 1 で衝突せず、
+主キーとそれを指す外部キーへ同じ式が当たるため、行があっても参照関係はそのまま保たれる
+（`1` → `00000000-0000-0000-0000-000000000001`）。
+
+#### 0018 以前のデータが残る DB を移行する場合の注意
+
+0019 は主キーの変換だけでなく、`bookmark.source_article` / `bookmark.category_v2` /
+`bookmark.hash` / `bookmark.normalized_url` や `feed` / `article` のいくつかの列を
+**削除して作り直す**（`source_article` は 0020 で空のまま戻る）。元の migration の設計が
+そうなっているため、0018 以前のデータを持つ DB へ適用するとそれらの列の中身は失われる。
+また `bookmark.category` は参照先が `BookmarkCategory` から `Category` へ変わるが、値の
+読み替えはしないため、同じ整数 id の別カテゴリを指すことになる。
+
+新しい環境を作る場合と、すでに 0019 を適用済みの DB には影響しない。0018 以前のデータを
+残したまま移行する必要がある場合は、この 2 点を先に決めてから行うこと。
 
 ### GitHub Packages
 
@@ -132,8 +144,33 @@ tag は `v<version>` になる。`release-please-config.json` の
 後者が無効だと、ワークフローで `pull-requests: write` を指定していても
 release PR の作成は拒否される (`GitHub Actions is not permitted to create or approve pull requests.`)。
 
+## コンテナイメージの配布
+
+release PR を merge して tag と Release ができた回だけ、同じ Workflow の `image` job が
+リリースした commit の arm64 イメージを GHCR へ push する。
+
+| イメージ | Dockerfile |
+| --- | --- |
+| `ghcr.io/hamirilo/feedee` | `Dockerfile`（Django + Vite） |
+| `ghcr.io/hamirilo/feedee-rss-worker` | `rss_worker/Dockerfile`（Go） |
+
+tag は `v<version>` と `latest` の 2 つ。**切り戻しは tag ではなく digest で指す。**
+digest は Workflow の実行結果（Summary）に出る。
+
+イベントではなく同じ Workflow の job にしているのは、`GITHUB_TOKEN` で作られた tag や
+Release が別の Workflow を起動しないため（GitHub の無限ループ防止）。
+
+このリポジトリは public なので、GitHub hosted の arm64 runner（`ubuntu-24.04-arm`）を
+そのまま使える。private な favtt / hamirilog は QEMU のクロスビルドになっている。
+
 ## デプロイ
 
-リリース tag はコンテナイメージを配布しない。本番は Mac mini 上で
-`scripts/deploy.sh` がソースから build する運用のまま。
-制約と解消条件は [decisions/adr-0001-server-side-image-build.md](../decisions/adr-0001-server-side-image-build.md) を参照。
+**本番はまだソースから build している。** Mac mini 上で `scripts/deploy.sh` が
+`git pull` → `docker compose build` → `up -d` を実行する。
+
+pull 運用へ切り替えるには、Mac mini で GHCR へログインし（`read:packages` のトークンで
+`docker login ghcr.io`）、`compose.prod.yaml` の `backend` と `rss-worker` を `build:` から
+`image:` 参照へ変え、`scripts/deploy.sh` を「pull して起動」へ書き換える。切替時の
+ダウンタイムと切り戻しの確認も要るため、
+[decisions/adr-0001-server-side-image-build.md](../decisions/adr-0001-server-side-image-build.md)
+の解消条件を確認してから行うこと。
