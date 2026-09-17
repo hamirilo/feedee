@@ -6,6 +6,8 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 
+from . import _uuid_cast
+
 
 class Migration(migrations.Migration):
 
@@ -389,7 +391,7 @@ class Migration(migrations.Migration):
             name='hash',
             field=models.CharField(blank=True, default='', max_length=64),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='article',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
@@ -419,7 +421,7 @@ class Migration(migrations.Migration):
             name='title',
             field=models.CharField(blank=True, max_length=1000, null=True),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='articleuserstate',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
@@ -434,7 +436,7 @@ class Migration(migrations.Migration):
             name='description',
             field=models.TextField(blank=True, null=True),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='bookmark',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
@@ -459,7 +461,7 @@ class Migration(migrations.Migration):
             name='bookmark',
             field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='user_state', to='rssapp.bookmark'),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='bookmarkuserstate',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
@@ -484,7 +486,7 @@ class Migration(migrations.Migration):
             name='display_order',
             field=models.PositiveIntegerField(default=0),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='category',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
@@ -514,7 +516,7 @@ class Migration(migrations.Migration):
             name='etag',
             field=models.CharField(blank=True, max_length=255, null=True),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='feed',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
@@ -544,7 +546,7 @@ class Migration(migrations.Migration):
             name='color',
             field=models.CharField(default='#6b7280', max_length=7),
         ),
-        migrations.AlterField(
+        _uuid_cast.AlterFieldToUUID(
             model_name='tag',
             name='id',
             field=models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False),
