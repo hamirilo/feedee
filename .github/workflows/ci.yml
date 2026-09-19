@@ -193,16 +193,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      # 現在の依存に @hamirilo/* は無いため、この install に認証は要らない。
-      # .npmrc が参照する ${GITHUB_TOKEN} の受け渡しは、UI Kit を採用したときに
-      # そのまま使えるように残してある (GitHub CLI の予約名と衝突するため、
-      # この名前の環境変数はこのステップに閉じる)。403 になる場合は
+      # private registry 用のトークンへ GITHUB_TOKEN という名前を使わない
+      # (GitHub CLI の予約名で、read:packages しか持たない値を入れると CLI の操作が壊れる)。
+      # .npmrc は ${PACKAGES_TOKEN} を参照する。403 になる場合は
       # パッケージ設定の "Manage Actions access" にこのリポジトリを追加する
       # (パッケージごとの設定)。docs/release.md を参照。
       - name: 依存のインストール
         run: bun install --frozen-lockfile
         env:
-          GITHUB_TOKEN: ${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
+          PACKAGES_TOKEN: ${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: biome
         run: bun run biome check .
@@ -270,6 +269,7 @@ jobs:
           load: true
           tags: feedee:ci
           secrets: |
+            packages_token=${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
             github_token=${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend

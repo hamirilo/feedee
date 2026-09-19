@@ -7,12 +7,18 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.docker/bin:$PATH"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
 
-# .env が存在する場合は環境変数（GITHUB_TOKEN等）をロード
+# .env が存在する場合は環境変数（PACKAGES_TOKEN, GITHUB_TOKEN等）をロード
 if [ -f .env ]; then
   set -a
   # shellcheck disable=SC1091
   source .env
   set +a
+  # GITHUB_TOKEN と PACKAGES_TOKEN の相互フォールバック
+  if [ -n "${GITHUB_TOKEN:-}" ] && [ -z "${PACKAGES_TOKEN:-}" ]; then
+    export PACKAGES_TOKEN="$GITHUB_TOKEN"
+  elif [ -n "${PACKAGES_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ]; then
+    export GITHUB_TOKEN="$PACKAGES_TOKEN"
+  fi
 fi
 
 COMPOSE="docker compose --env-file .env -f compose.prod.yaml"

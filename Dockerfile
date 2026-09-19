@@ -4,9 +4,12 @@ FROM oven/bun:1-slim AS frontend
 WORKDIR /app
 
 COPY package.json bun.lock .npmrc ./
-RUN --mount=type=secret,id=github_token \
-    if [ -f /run/secrets/github_token ]; then \
-      echo "//npm.pkg.github.com/:_authToken=$(cat /run/secrets/github_token)" >> .npmrc; \
+RUN --mount=type=secret,id=packages_token \
+    --mount=type=secret,id=github_token \
+    TOKEN=$(cat /run/secrets/packages_token 2>/dev/null || cat /run/secrets/github_token 2>/dev/null || true) && \
+    if [ -n "$TOKEN" ]; then \
+      export PACKAGES_TOKEN="$TOKEN"; \
+      echo "//npm.pkg.github.com/:_authToken=${TOKEN}" >> .npmrc; \
     fi && \
     bun install --frozen-lockfile && \
     sed -i '/authToken/d' .npmrc

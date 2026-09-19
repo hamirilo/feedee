@@ -87,6 +87,7 @@ jobs:
           # CI の image job と同じ形で渡す。現在の依存に @hamirilo/* は無いので実際には
           # 使われないが、UI Kit を採用したときにそのまま効く。
           secrets: |
+            packages_token=${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
             github_token=${{ secrets.NPM_PACKAGES_TOKEN || secrets.GITHUB_TOKEN }}
           cache-from: type=gha,scope=${{ matrix.image.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image.name }}

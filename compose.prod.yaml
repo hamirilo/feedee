@@ -20,6 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile
       secrets:
+        - packages_token
         - github_token
     command: >
       sh -c "python manage.py migrate && python manage.py create_admin_user && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
@@ -60,5 +61,7 @@ volumes:
   postgres_data:
 
 secrets:
+  packages_token:
+    environment: PACKAGES_TOKEN
   github_token:
     environment: GITHUB_TOKEN
