@@ -125,7 +125,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in (
         os.environ.get("CSRF_TRUSTED_ORIGINS")
-        or "http://localhost:8000,http://127.0.0.1:8000,http://10.0.0.100,http://10.0.0.100:8000,http://10.0.0.100:8082,http://100.81.153.20,http://100.81.153.20:8000,http://100.81.153.20:8082,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net"
+        or "http://localhost:8010,http://127.0.0.1:8010,http://10.0.0.100,http://10.0.0.100:8010,http://100.81.153.20,http://100.81.153.20:8010,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net"
     ).split(",")
     if origin.strip()
 ]
