@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/hamirilo/feedee/compare/v2.2.0...v2.3.0) (2026-09-19)
+
+
+### Features
+
+* introduce PACKAGES_TOKEN for GitHub Packages authentication with fallback support ([c591b53](https://github.com/hamirilo/feedee/commit/c591b534c1e278572f2faf8645b0a04e2f5ca9a9))
+
 ## [2.2.0](https://github.com/hamirilo/feedee/compare/v2.1.0...v2.2.0) (2026-09-17)
 
 
