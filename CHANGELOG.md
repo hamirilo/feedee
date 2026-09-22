@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.0](https://github.com/hamirilo/feedee/compare/v2.3.0...v2.4.0) (2026-09-22)
+
+
+### Features
+
+* **deploy:** allow feedee.macmini host and csrf origin ([11dc720](https://github.com/hamirilo/feedee/commit/11dc7209963fe7251773e603129d0f9260089ac7))
+* **deploy:** allow feedee.macmini host and csrf origin ([66520e9](https://github.com/hamirilo/feedee/commit/66520e9fd6c0b9fd2b341c5f2736ca370f758f9c))
+
 ## [2.3.0](https://github.com/hamirilo/feedee/compare/v2.2.0...v2.3.0) (2026-09-19)
 
 
