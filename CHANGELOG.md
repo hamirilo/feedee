@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/hamirilo/feedee/compare/v2.4.0...v2.5.0) (2026-09-22)
+
+
+### Features
+
+* **deploy:** add feedee.macmini to .env.example ([5f6b1dd](https://github.com/hamirilo/feedee/commit/5f6b1ddd8c16de037af3677759814c980ecf75f0))
+
 ## [2.4.0](https://github.com/hamirilo/feedee/compare/v2.3.0...v2.4.0) (2026-09-22)
 
 
