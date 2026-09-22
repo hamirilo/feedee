@@ -10,7 +10,7 @@ ALLOWED_HOSTS = [
     host.strip()
     for host in (
         os.environ.get("DJANGO_ALLOWED_HOSTS")
-        or "localhost,127.0.0.1,10.0.0.100,100.81.153.20,mac-mini-m4,.tail4dde35.ts.net,.ts.net,web,backend,feedee-web"
+        or "localhost,127.0.0.1,10.0.0.100,100.81.153.20,mac-mini-m4,.tail4dde35.ts.net,.ts.net,web,backend,feedee-web,feedee.macmini"
     ).split(",")
     if host.strip()
 ]
@@ -125,7 +125,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in (
         os.environ.get("CSRF_TRUSTED_ORIGINS")
-        or "http://localhost:8010,http://127.0.0.1:8010,http://10.0.0.100,http://10.0.0.100:8010,http://100.81.153.20,http://100.81.153.20:8010,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net"
+        or "http://localhost:8010,http://127.0.0.1:8010,http://10.0.0.100,http://10.0.0.100:8010,http://100.81.153.20,http://100.81.153.20:8010,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net,http://feedee.macmini"
     ).split(",")
     if origin.strip()
 ]
