@@ -13,11 +13,11 @@
     "vite": "^6.4.3"
   },
   "dependencies": {
-    "alpinejs": "^3.16.2",
+    "alpinejs": "^3.17.4",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "tailwind-merge": "^2.6.1"
   }
 }
