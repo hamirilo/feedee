@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from passport_client.conf import oidc_settings
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "django-insecure-feedee-development-key")
@@ -26,6 +28,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "import_export",
+    "mozilla_django_oidc",
+    "passport_client",
     "apps.rssapp.apps.RssappConfig",
     "apps.rss_service.apps.RssServiceConfig",
     "apps.bookmark_service.apps.BookmarkServiceConfig",
@@ -39,6 +43,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "passport_client.middleware.PassportSessionRefresh",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -47,8 +52,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 WORKER_API_TOKEN = os.environ.get("WORKER_API_TOKEN", "change-me-to-a-random-token")
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin-password")
 
 
 ROOT_URLCONF = "config.urls"
@@ -145,14 +148,20 @@ REST_FRAMEWORK = {
     },
 }
 
-AUTHENTICATION_BACKENDS = [
-    "apps.rssapp.backends.EmailBackend",
-    "django.contrib.auth.backends.ModelBackend",
-]
+# ログインは passport（hamirilo の共通ログイン）に任せる（ADR-0002）。
+# ローカルのパスワードでは入れない。PassportBackend は ModelBackend を継承するので
+# Django Admin の権限判定はそのまま効く。API の DRF Token / Worker Token は別経路で残る。
+AUTHENTICATION_BACKENDS = ["passport_client.backends.PassportBackend"]
 
-LOGIN_URL = "/login/"
+globals().update(
+    oidc_settings(
+        client_id="feedee",
+        client_secret=os.environ.get("PASSPORT_CLIENT_SECRET", ""),
+        internal_url=os.environ.get("PASSPORT_INTERNAL_URL", "http://127.0.0.1:8040"),
+    )
+)
+
 LOGIN_REDIRECT_URL = "/"
-LOGOUT_REDIRECT_URL = "/login/"
 FULL_TEXT_EXTRACTION_ENABLED = os.environ.get("FULL_TEXT_EXTRACTION_ENABLED", "true").lower() not in (
     "0",
     "false",

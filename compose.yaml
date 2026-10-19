@@ -23,7 +23,7 @@ services:
         - packages_token
         - github_token
     command: >
-      sh -c "python manage.py migrate && python manage.py create_admin_user && python manage.py runserver 0.0.0.0:8000"
+      sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
       - /app/.venv
@@ -35,10 +35,12 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-feedee}:${POSTGRES_PASSWORD:-feedee}@db:5432/${POSTGRES_DB:-feedee}
       - DJANGO_DEBUG=True
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin-password}
       - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-to-a-random-secret-key}
+      - PASSPORT_CLIENT_SECRET=${PASSPORT_CLIENT_SECRET:-}
+      - PASSPORT_INTERNAL_URL=${PASSPORT_INTERNAL_URL:-http://host.docker.internal:8040}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

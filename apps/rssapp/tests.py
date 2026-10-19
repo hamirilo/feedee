@@ -2,12 +2,16 @@ from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
-from django.contrib.auth import get_user_model
+from django.conf import settings
+from django.contrib.auth import authenticate, get_user_model
+from django.contrib.messages import get_messages
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.authtoken.models import Token
+
+from passport_client.backends import PassportBackend
 
 from .forms import FeedCreateForm
 from .models import (
@@ -27,64 +31,67 @@ class AuthenticationFlowTests(TestCase):
 
         self.assertRedirects(response, reverse("bookmarks-page"), fetch_redirect_response=False)
 
-    def test_login_page_shows_register_link(self):
-        response = self.client.get(reverse("login"))
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, reverse("register"))
-        self.assertContains(response, "Create an account")
-
-    def test_bookmarks_page_redirects_to_login_when_unauthenticated(self):
+    def test_bookmarks_page_redirects_to_passport_when_unauthenticated(self):
         response = self.client.get(reverse("bookmark-list"))
 
         self.assertRedirects(
             response,
-            f"{reverse('login')}?next={reverse('bookmark-list')}",
+            f"{reverse('oidc_authentication_init')}?next={reverse('bookmark-list')}",
+            fetch_redirect_response=False,
         )
 
-    def test_anonymous_today_alias_redirects_to_login(self):
+    def test_anonymous_today_alias_redirects_to_passport(self):
         response = self.client.get(reverse("rss-dashboard"))
 
         self.assertRedirects(
             response,
-            f"{reverse('login')}?next={reverse('rss-dashboard')}",
+            f"{reverse('oidc_authentication_init')}?next={reverse('rss-dashboard')}",
+            fetch_redirect_response=False,
         )
 
-    def test_register_page_creates_user_and_logs_in(self):
-        response = self.client.post(
-            reverse("register"),
-            {
-                "email": "newuser@example.com",
-                "password1": "StrongPass123!",
-                "password2": "StrongPass123!",
-            },
-            follow=True,
-        )
+    def test_passport_is_reached_on_the_same_host(self):
+        response = self.client.get(reverse("oidc_authentication_init"), HTTP_HOST="10.0.0.100:8010")
 
-        self.assertRedirects(response, reverse("bookmarks-page"))
-        user = get_user_model().objects.get(email="newuser@example.com")
-        self.assertEqual(user.username, "newuser@example.com")
-        self.assertTrue(response.context["user"].is_authenticated)
-        self.assertTrue(UserProfile.objects.filter(user=user).exists())
+        self.assertTrue(response["Location"].startswith("http://10.0.0.100:8040/o/authorize/?"))
+        self.assertIn("client_id=feedee", response["Location"])
 
-    def test_register_rejects_duplicate_email(self):
-        get_user_model().objects.create_user(
-            username="existing",
-            email="dup@example.com",
-            password="Password123!",
-        )
+    def test_local_login_and_signup_are_gone(self):
+        # ログインとアカウント作成は passport が持つ。誰でもアカウントを作れる入口を残さない。
+        for path in ("/login/", "/register/", "/logout/"):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
 
-        response = self.client.post(
-            reverse("register"),
-            {
-                "email": "dup@example.com",
-                "password1": "StrongPass123!",
-                "password2": "StrongPass123!",
-            },
-        )
+    def test_local_password_does_not_authenticate(self):
+        get_user_model().objects.create_user(username="old", email="old@example.com", password="Password123!")
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "An account with this email already exists.")
+        self.assertIsNone(authenticate(username="old@example.com", password="Password123!"))
+        self.assertIsNone(authenticate(username="old", password="Password123!"))
+
+    def test_admin_login_goes_to_passport(self):
+        response = self.client.get("/admin/login/?next=/admin/")
+
+        self.assertEqual(response["Location"], f"{reverse('oidc_authentication_init')}?next=%2Fadmin%2F")
+
+    def test_session_cookie_name_is_not_shared_with_other_products(self):
+        self.assertEqual(settings.SESSION_COOKIE_NAME, "feedee_sessionid")
+
+    def test_passport_user_is_linked_by_email(self):
+        user = get_user_model().objects.create_user(username="existing", email="Me@example.com")
+
+        found = PassportBackend().filter_users_by_claims({"email": "me@example.com"})
+
+        self.assertEqual(list(found), [user])
+
+    def test_first_passport_login_creates_user_named_by_email(self):
+        user = PassportBackend().create_user({"email": "new@example.com"})
+
+        self.assertEqual(user.username, "new@example.com")
+        self.assertFalse(user.has_usable_password())
+
+    def test_only_people_allowed_feedee_by_passport_get_in(self):
+        backend = PassportBackend()
+
+        self.assertTrue(backend.verify_claims({"email": "a@example.com", "apps": ["feedee"]}))
+        self.assertFalse(backend.verify_claims({"email": "a@example.com", "apps": ["eigolog"]}))
 
     def test_saved_route_returns_404(self):
         response = self.client.get("/saved/")
@@ -404,11 +411,12 @@ class ArticleUserStateTests(TestCase):
     def test_web_toggle_anonymous_does_not_create_state_and_shows_error(self):
         toggle_url = reverse("article-state-toggle", args=[self.article.id, "is_read_later"])
 
-        response = self.client.post(toggle_url, data={"q": "feeds", "page": "2"}, follow=True)
+        response = self.client.post(toggle_url, data={"q": "feeds", "page": "2"})
 
-        self.assertEqual(response.status_code, 200)
+        # 戻り先はログイン必須なので、その先は passport（別オリジン）へのログインになる。
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(ArticleUserState.objects.count(), 0)
-        messages = [str(message) for message in response.context["messages"]]
+        messages = [str(message) for message in get_messages(response.wsgi_request)]
         self.assertIn("Please log in to update article state.", messages)
 
 
@@ -696,6 +704,27 @@ class UserPreferenceMVPTests(TestCase):
         self.profile.refresh_from_db()
         self.assertEqual(self.profile.theme_preference, "dark")
         self.assertContains(response, "Preferences saved.")
+
+    def test_account_settings_send_password_changes_to_passport(self):
+        # パスワードは passport だけが持つ。feedee では変えられない。
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse("settings-account"), HTTP_HOST="10.0.0.100:8010")
+
+        self.assertNotContains(response, "Current password")
+        self.assertContains(response, 'href="http://10.0.0.100:8040/"')
+
+        self.client.post(
+            reverse("settings-account"),
+            data={
+                "form_action": "password",
+                "old_password": "password123",
+                "new_password1": "Changed-pass-123",
+                "new_password2": "Changed-pass-123",
+            },
+        )
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("password123"))
 
 
 class BookmarkLinkBehaviorTests(TestCase):

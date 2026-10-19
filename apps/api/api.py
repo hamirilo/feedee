@@ -1,6 +1,5 @@
 from ninja import NinjaAPI
 
-from apps.api.routers.auth import router as auth_router
 from apps.api.routers.bookmarks import router as bookmarks_router
 from apps.api.routers.common import router as common_router
 from apps.api.routers.feeds import router as feeds_router
@@ -20,7 +19,6 @@ def health(request):
     return {"status": "ok"}
 
 
-api.add_router("/auth", auth_router)
 api.add_router("/worker", worker_router)
 api.add_router("/bookmarks", bookmarks_router)
 api.add_router("", common_router)

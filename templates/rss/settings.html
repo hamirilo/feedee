@@ -585,42 +585,11 @@
         </form>
     </section>
 
-    {# ── Change password ── #}
+    {# パスワードは passport（共通ログイン）だけが持つ #}
     <section class="rounded-xl bg-white border border-gray-200 shadow-soft p-5">
-        <h2 class="text-sm font-semibold text-gray-900 mb-4">Change password</h2>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="form_action" value="password">
-            <div class="space-y-3 max-w-sm mb-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Current password</label>
-                    {{ password_form.old_password }}
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">New password</label>
-                    {{ password_form.new_password1 }}
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Confirm new password</label>
-                    {{ password_form.new_password2 }}
-                </div>
-            </div>
-            {% if password_form.errors %}
-            <div class="mb-4 rounded-lg bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-700">
-                {% for field, errors in password_form.errors.items %}
-                    {% for error in errors %}
-                        <p>{{ error }}</p>
-                    {% endfor %}
-                {% endfor %}
-            </div>
-            {% endif %}
-            <div class="flex justify-end">
-                <button type="submit"
-                        class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium transition-colors shadow-sm">
-                    Change password
-                </button>
-            </div>
-        </form>
+        <h2 class="text-sm font-semibold text-gray-900 mb-2">Password</h2>
+        <p class="text-sm text-gray-500 mb-4">Your account is shared across hamirilo apps. Change your password in passport.</p>
+        <a href="{{ passport_url }}" class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 text-sm font-medium transition-colors shadow-sm">Open passport</a>
     </section>
 
     {# ── Bookmarklet Tab ─────────────────────────────── #}

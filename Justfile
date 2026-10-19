@@ -28,14 +28,13 @@ default:
     printf "  \033[32mjust prod-logs\033[0m           Tail production logs\n"
     printf "  \033[32mjust prod-build\033[0m          Build production images\n"
     printf "  \033[32mjust prod-migrate\033[0m        Run database migrations in production\n"
-    printf "  \033[32mjust prod-superuser\033[0m      Create a superuser in production\n"
     printf "  \033[32mjust prod-shell\033[0m          Open python shell in production backend\n\n"
 
     printf "\033[1;34m💻 Local Development (Direct OS)\033[0m\n"
     printf "  \033[32mjust local-migrate\033[0m       Run database migrations locally\n"
     printf "  \033[32mjust local-shell\033[0m         Open python shell locally\n"
     printf "  \033[32mjust local-worker\033[0m        Run RSS worker locally\n"
-    printf "  \033[32mjust local-superuser\033[0m     Create a superuser locally\n\n"
+    printf "\n"
 
     printf "\033[1;34m🛠️  Testing & Code Quality\033[0m\n"
     printf "  \033[32mjust test\033[0m                Run Django tests\n"
@@ -120,10 +119,6 @@ prod-ps: prod-check-env
 prod-migrate: prod-check-env
     {{compose_prod}} exec backend python manage.py migrate
 
-# Create superuser in production environment
-prod-superuser: prod-check-env
-    {{compose_prod}} exec backend python manage.py create_admin_user
-
 # Open interactive shell in production environment
 prod-shell: prod-check-env
     {{compose_prod}} exec backend python manage.py shell
@@ -166,10 +161,6 @@ local-shell:
 # Run RSS worker locally
 local-worker:
     go run rss_worker/main.go
-
-# Create superuser locally
-local-superuser:
-    uv run python manage.py create_admin_user
 
 
 # ===================================================================

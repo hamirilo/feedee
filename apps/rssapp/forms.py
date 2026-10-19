@@ -1,19 +1,9 @@
 from urllib.parse import urlsplit
 
 from django import forms
-from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import (
-    AuthenticationForm,
-    UserCreationForm,
-)
-from django.contrib.auth.forms import (
-    PasswordChangeForm as DjangoPasswordChangeForm,
-)
 
 from .models import Bookmark, BookmarkCategory, Feed, Tag, UserProfile
 from .utils import discover_feed_url
-
-User = get_user_model()
 
 _INPUT_CLASS = (
     "w-full rounded-lg border border-input bg-background text-foreground px-3 py-2 text-sm "
@@ -222,91 +212,3 @@ class UserProfileForm(forms.ModelForm):
                 }
             ),
         }
-
-
-class EmailLoginForm(AuthenticationForm):
-    # Django ships translated defaults; the auth screens are written in English,
-    # so pin the messages instead of rendering a mixed-language form.
-    error_messages = {
-        **AuthenticationForm.error_messages,
-        "invalid_login": "Invalid email or password.",
-        "inactive": "This account is inactive.",
-    }
-
-    username = forms.EmailField(
-        label="Email",
-        widget=forms.EmailInput(
-            attrs={
-                "class": _INPUT_CLASS,
-                "placeholder": "you@example.com",
-                "autocomplete": "email",
-                "autofocus": True,
-            }
-        ),
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["password"].widget.attrs.update(
-            {
-                "class": _INPUT_CLASS,
-                "placeholder": "Password",
-                "autocomplete": "current-password",
-            }
-        )
-
-
-class SignUpForm(UserCreationForm):
-    email = forms.EmailField(
-        label="Email",
-        widget=forms.EmailInput(
-            attrs={
-                "class": _INPUT_CLASS,
-                "placeholder": "you@example.com",
-                "autocomplete": "email",
-                "autofocus": True,
-            }
-        ),
-    )
-
-    class Meta(UserCreationForm.Meta):
-        model = User
-        fields = ("email",)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["password1"].widget.attrs.update(
-            {
-                "class": _INPUT_CLASS,
-                "placeholder": "Create a password",
-                "autocomplete": "new-password",
-            }
-        )
-        self.fields["password2"].widget.attrs.update(
-            {
-                "class": _INPUT_CLASS,
-                "placeholder": "Confirm your password",
-                "autocomplete": "new-password",
-            }
-        )
-
-    def clean_email(self):
-        email = self.cleaned_data["email"].strip().lower()
-        if User.objects.filter(email__iexact=email).exists():
-            raise forms.ValidationError("An account with this email already exists.")
-        return email
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.email = self.cleaned_data["email"]
-        user.username = self.cleaned_data["email"]
-        if commit:
-            user.save()
-        return user
-
-
-class StyledPasswordChangeForm(DjangoPasswordChangeForm):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs["class"] = _INPUT_CLASS

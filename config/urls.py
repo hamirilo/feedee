@@ -1,11 +1,9 @@
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
 from django.http import JsonResponse
 from django.urls import include, path
 
 from apps.api.api import api
-from apps.rssapp.forms import EmailLoginForm
-from apps.rssapp.views import register_view
+from passport_client.views import admin_login
 
 
 def health_view(request):
@@ -13,19 +11,12 @@ def health_view(request):
 
 
 urlpatterns = [
+    # ログインは passport に任せる。Admin のログイン画面も passport へ回す（admin より前）。
+    path("admin/login/", admin_login),
     path("admin/", admin.site.urls),
+    path("oidc/", include("passport_client.urls")),
     path("app/", api.urls),
     path("health", health_view),
-    path(
-        "login/",
-        auth_views.LoginView.as_view(
-            template_name="auth/login.html",
-            authentication_form=EmailLoginForm,
-        ),
-        name="login",
-    ),
-    path("register/", register_view, name="register"),
-    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path(
         "rss/",
         include(("apps.rss_service.urls", "rss_service"), namespace="rss_service"),

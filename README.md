@@ -94,15 +94,26 @@ uv sync
 # DB マイグレーション
 uv run python manage.py migrate
 
-# スーパーユーザー作成
-uv run python manage.py createsuperuser
-
 # Django 起動
 uv run python manage.py runserver
 
 # RSS ワーカー起動（別ターミナル）
 go run rss_worker/main.go
 ```
+
+### ログイン（passport）
+
+ログインとアカウントは hamirilo の共通ログイン [passport](https://github.com/hamirilo/passport) が持ちます
+（[ADR-0002](decisions/adr-0002-passport-login.md)）。feedee にはログイン画面・アカウント作成・
+パスワード変更がありません。
+
+1. passport を起動し、`just sync-products --port feedee=8010` で feedee のクライアントを作る
+2. 表示された secret を `.env` の `PASSPORT_CLIENT_SECRET` に入れる
+3. passport の Admin で使う人に feedee を付ける
+
+初めてログインした人は、passport の email で既存のユーザーへひも付きます（いなければ作られます）。
+Admin を使うなら、ひも付いたユーザーに `is_staff` / `is_superuser` を付けます。
+API の DRF Token（Admin で発行）と Worker Token は passport を通らない別経路として残ります。
 
 ### 開発環境（Docker）
 
@@ -237,7 +248,6 @@ just prod-shell          本番 Django シェル
 just local-migrate       ローカル DB マイグレーション
 just local-shell         ローカル Django シェル
 just local-worker        ローカル RSS ワーカー起動
-just local-superuser     ローカル スーパーユーザー作成
 just local-collectstatic ローカル 静的ファイル収集
 
 just test                テスト実行

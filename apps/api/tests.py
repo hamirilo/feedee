@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
+from apps.api.security import create_access_token
 from apps.rssapp.models import Article, Feed
 
 User = get_user_model()
@@ -21,17 +22,18 @@ class NinjaAPITestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
 
-    def test_login_and_authenticated_endpoints(self):
-        # 1. Login
-        login_res = self.client.post(
+    def test_password_login_endpoint_is_gone(self):
+        # パスワードでのログインは passport だけが受ける（ADR-0002）。
+        response = self.client.post(
             "/app/auth/login",
             data=json.dumps({"username": self.username, "password": self.password}),
             content_type="application/json",
         )
-        self.assertEqual(login_res.status_code, 200)
-        data = login_res.json()
-        self.assertIn("access_token", data)
-        token = data["access_token"]
+        self.assertEqual(response.status_code, 404)
+
+    def test_authenticated_endpoints(self):
+        # 1. Token
+        token = create_access_token(data={"sub": self.username})
         auth_headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
         # 2. Categories
