@@ -30,6 +30,8 @@ echo "==> [2/4] Building images..."
 $COMPOSE build
 
 echo "==> [3/4] Starting containers..."
+# nginx-gateway と共有するネットワーク。どちらが先にデプロイされてもよいよう、無ければ作る。
+docker network inspect hamirilo >/dev/null 2>&1 || docker network create hamirilo >/dev/null
 $COMPOSE up -d --remove-orphans
 
 echo "==> [4/4] Checking container status..."
