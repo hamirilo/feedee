@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.6.0](https://github.com/hamirilo/feedee/compare/v2.5.0...v2.6.0) (2026-10-24)
+
+
+### Features
+
+* LAN へのポートを出さず、nginx-gateway 経由にする ([2f27028](https://github.com/hamirilo/feedee/commit/2f270284ef7d9d9c6429fcc6c8abd48cc39f740e))
+* ログインを共通ログイン passport（OIDC）に任せる ([f752ffe](https://github.com/hamirilo/feedee/commit/f752ffeea35595dbd4499635e2998d443292d296))
+
 ## [2.5.0](https://github.com/hamirilo/feedee/compare/v2.4.0...v2.5.0) (2026-09-22)
 
 
