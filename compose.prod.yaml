@@ -24,8 +24,13 @@ services:
         - github_token
     command: >
       sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
-    ports:
-      - "8010:8000"
+    # LAN へはポートを出さない。nginx-gateway が共有ネットワーク hamirilo の
+    # 別名 feedee で中継する（nginx-gateway の README「アプリの切り替え」）。
+    networks:
+      default:
+      hamirilo:
+        aliases:
+          - feedee
     env_file:
       - .env
     environment:
@@ -68,3 +73,8 @@ secrets:
     environment: PACKAGES_TOKEN
   github_token:
     environment: GITHUB_TOKEN
+
+networks:
+  hamirilo:
+    # nginx-gateway と共有する。無ければ scripts/deploy.sh が作る。
+    external: true
