@@ -128,7 +128,7 @@ CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in (
         os.environ.get("CSRF_TRUSTED_ORIGINS")
-        or "http://localhost:8010,http://127.0.0.1:8010,http://10.0.0.100,http://10.0.0.100:8010,http://100.81.153.20,http://100.81.153.20:8010,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net,http://feedee.macmini"
+        or "http://localhost:8004,http://127.0.0.1:8004,http://10.0.0.100,http://10.0.0.100:8004,http://100.81.153.20,http://100.81.153.20:8004,http://mac-mini-m4,http://*.tail4dde35.ts.net,http://*.ts.net,http://feedee.macmini"
     ).split(",")
     if origin.strip()
 ]
@@ -157,7 +157,7 @@ globals().update(
     oidc_settings(
         client_id="feedee",
         client_secret=os.environ.get("PASSPORT_CLIENT_SECRET", ""),
-        internal_url=os.environ.get("PASSPORT_INTERNAL_URL", "http://127.0.0.1:8040"),
+        internal_url=os.environ.get("PASSPORT_INTERNAL_URL", "http://127.0.0.1:8888"),
     )
 )
 

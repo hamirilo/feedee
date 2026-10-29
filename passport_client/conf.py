@@ -6,7 +6,7 @@
         oidc_settings(
             client_id="eigolog",
             client_secret=env("PASSPORT_CLIENT_SECRET"),
-            internal_url=env("PASSPORT_INTERNAL_URL", "http://host.docker.internal:8040"),
+            internal_url=env("PASSPORT_INTERNAL_URL", "http://host.docker.internal:8888"),
         )
     )
 
@@ -21,7 +21,7 @@ from typing import Any
 
 from django.conf import settings
 
-DEFAULT_PUBLIC_URL = "{scheme}://{hostname}:8040"
+DEFAULT_PUBLIC_URL = "{scheme}://{hostname}:8888"
 DEFAULT_ISSUER = "http://passport"
 
 

@@ -107,7 +107,7 @@ go run rss_worker/main.go
 （[ADR-0002](decisions/adr-0002-passport-login.md)）。feedee にはログイン画面・アカウント作成・
 パスワード変更がありません。
 
-1. passport を起動し、`just sync-products --port feedee=8010` で feedee のクライアントを作る
+1. passport を起動し、`just sync-products` で feedee のクライアントを作る
 2. 表示された secret を `.env` の `PASSPORT_CLIENT_SECRET` に入れる
 3. passport の Admin で使う人に feedee を付ける
 
