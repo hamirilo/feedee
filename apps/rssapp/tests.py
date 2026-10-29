@@ -50,9 +50,9 @@ class AuthenticationFlowTests(TestCase):
         )
 
     def test_passport_is_reached_on_the_same_host(self):
-        response = self.client.get(reverse("oidc_authentication_init"), HTTP_HOST="10.0.0.100:8010")
+        response = self.client.get(reverse("oidc_authentication_init"), HTTP_HOST="10.0.0.100:8004")
 
-        self.assertTrue(response["Location"].startswith("http://10.0.0.100:8040/o/authorize/?"))
+        self.assertTrue(response["Location"].startswith("http://10.0.0.100:8888/o/authorize/?"))
         self.assertIn("client_id=feedee", response["Location"])
 
     def test_local_login_and_signup_are_gone(self):
@@ -709,10 +709,10 @@ class UserPreferenceMVPTests(TestCase):
         # パスワードは passport だけが持つ。feedee では変えられない。
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("settings-account"), HTTP_HOST="10.0.0.100:8010")
+        response = self.client.get(reverse("settings-account"), HTTP_HOST="10.0.0.100:8004")
 
         self.assertNotContains(response, "Current password")
-        self.assertContains(response, 'href="http://10.0.0.100:8040/"')
+        self.assertContains(response, 'href="http://10.0.0.100:8888/"')
 
         self.client.post(
             reverse("settings-account"),

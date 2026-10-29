@@ -28,7 +28,7 @@ services:
       - .:/app
       - /app/.venv
     ports:
-      - "8010:8000"
+      - "8004:8000"
     env_file:
       - path: .env
         required: false
@@ -38,7 +38,7 @@ services:
       - WORKER_API_TOKEN=${WORKER_API_TOKEN:-change-me-to-a-random-token}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-to-a-random-secret-key}
       - PASSPORT_CLIENT_SECRET=${PASSPORT_CLIENT_SECRET:-}
-      - PASSPORT_INTERNAL_URL=${PASSPORT_INTERNAL_URL:-http://host.docker.internal:8040}
+      - PASSPORT_INTERNAL_URL=${PASSPORT_INTERNAL_URL:-http://host.docker.internal:8888}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
