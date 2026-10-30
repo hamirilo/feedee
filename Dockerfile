@@ -4,9 +4,18 @@ FROM oven/bun:1-slim AS frontend
 WORKDIR /app
 
 COPY package.json bun.lock .npmrc ./
+# cat は空ファイルでも終了コード 0 を返すので、`cat a || cat b` では空のシークレットで
+# fallback が発火せず、TOKEN が空のまま bun install が匿名で走って private パッケージの
+# 取得が 401 で落ちる。空は「無い」ものとして扱い、中身の有無 (-s) で選ぶ。
 RUN --mount=type=secret,id=packages_token \
     --mount=type=secret,id=github_token \
-    TOKEN=$(cat /run/secrets/packages_token 2>/dev/null || cat /run/secrets/github_token 2>/dev/null || true) && \
+    if [ -s /run/secrets/packages_token ]; then \
+      TOKEN=$(cat /run/secrets/packages_token); \
+    elif [ -s /run/secrets/github_token ]; then \
+      TOKEN=$(cat /run/secrets/github_token); \
+    else \
+      TOKEN=""; \
+    fi && \
     if [ -n "$TOKEN" ]; then \
       export PACKAGES_TOKEN="$TOKEN"; \
       echo "//npm.pkg.github.com/:_authToken=${TOKEN}" >> .npmrc; \
