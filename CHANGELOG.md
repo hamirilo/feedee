@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.7.0](https://github.com/hamirilo/feedee/compare/v2.6.0...v2.7.0) (2026-10-30)
+
+
+### Features
+
+* ポートを 8004（dev / prod 共通）にし、passport を 8888 で引く ([574e030](https://github.com/hamirilo/feedee/commit/574e0302a9b1fbc66f10613414d59ada3df8abcf))
+* ポートを 8004（dev / prod 共通）にし、passport を 8888 で引く ([de58dd2](https://github.com/hamirilo/feedee/commit/de58dd2a97cc2d17c94412c3421b9ec55cb0f7e0))
+
+
+### Bug Fixes
+
+* 空の packages_token でも GITHUB_TOKEN へ fallback する ([52786bf](https://github.com/hamirilo/feedee/commit/52786bf2db2f5e6bb2dede211da2b81531513bfc))
+* 空の packages_token でも GITHUB_TOKEN へ fallback する ([b66bd32](https://github.com/hamirilo/feedee/commit/b66bd32902bad6aa9e909f15482e1aed5064f153))
+
 ## [2.6.0](https://github.com/hamirilo/feedee/compare/v2.5.0...v2.6.0) (2026-10-24)
 
 
